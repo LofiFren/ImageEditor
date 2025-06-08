@@ -1,0 +1,16 @@
+services:
+  image-editor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: luckfox-image-editor
+    privileged: true
+    volumes:
+      - ./:/workdir
+      - ./scripts:/scripts
+      - ./backups:/backups
+    working_dir: /workdir
+    command: sleep infinity
+
+volumes:
+  scripts:
