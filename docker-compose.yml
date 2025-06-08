@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: luckfox-image-editor
+    container_name: image-editor
     privileged: true
     volumes:
       - ./:/workdir
