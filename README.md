@@ -1,12 +1,17 @@
-# Kali Linux Image Editor for uConsole CM4
+# Image Editor Tools
 
-This Docker-based tool automates the creation of a Kali Linux image specifically configured for the ClockworkPi uConsole CM4.
+This repository contains Docker-based tools for working with disk images:
+
+1. **[Kali Linux Image Editor](kali-linux-image-editor.md)** - Automated tool for creating Kali Linux images for uConsole CM4
+2. **[Image Comparison Tool](image-comparison-tool.md)** - General-purpose image analysis and modification utilities
+3. **[Quick Reference](quick-reference.md)** - Common commands and workflows
 
 ## Prerequisites
 
 - Docker and Docker Compose installed on your system
 - At least 16GB of free disk space
 - The Kali Linux ARM64 image (`kali-linux-2024.1-raspberry-pi-arm64.img.xz`) in the `images/` directory
+- I was able to find it here: https://old.kali.org/arm-images/kali-2024.1/
 - Root/sudo access for mounting and modifying disk images
 
 ## Quick Start
