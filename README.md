@@ -56,7 +56,10 @@ After the script completes successfully, you'll have a modified image ready to w
 
 ```bash
 # Write the image to your SD card (replace /dev/sdX with your actual device)
-sudo dd if=/workdir/images/kali-linux-2024.1-raspberry-pi-arm64.img of=/dev/sdX bs=1M status=progress
+# Note this is to be run on the host machine i.e your mac. be sure to cd to the images dir where your new image islikely ImageEditor/images
+# Replace /dev/sdX with your actual SD card device
+
+sudo dd if=kali-linux-2024.1-raspberry-pi-arm64.img of=/dev/sdX bs=1M status=progress
 ```
 
 **⚠️ Warning**: Be extremely careful with the `dd` command. Using the wrong device path can destroy data on your system.
