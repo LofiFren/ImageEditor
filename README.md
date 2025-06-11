@@ -37,7 +37,7 @@ docker exec -it image-editor bash
 cd /workdir/Scripts
 
 # Execute the image creation script
-./create-uconsole-cm4-image.sh
+./create-uconsole-cm4-image-fixed.sh
 ```
 
 ## What the Script Does
