@@ -55,12 +55,32 @@ The script will:
 
 After the script completes:
 
+#### Linux:
 ```bash
 # Exit the container
 exit
 
 # Write to SD card (replace /dev/sdX with your device)
 sudo dd if=images/kali-linux-2024.1-raspberry-pi-arm64.img of=/dev/sdX bs=1M status=progress
+```
+
+#### macOS:
+```bash
+# Exit the container
+exit
+
+# List all disks to find your SD card
+diskutil list
+
+# Format the SD card (replace disk4 with your actual disk number)
+diskutil eraseDisk ExFAT "Kali" disk4
+
+# Unmount the disk
+diskutil unmountDisk /dev/disk4
+
+# Navigate to your project folder ImageEditor/images and write the image
+cd images
+sudo dd if=kali-linux-2024.1-raspberry-pi-arm64.img of=/dev/disk4 bs=4M status=progress
 ```
 
 ⚠️ **Warning**: Double-check the device path before running dd!
