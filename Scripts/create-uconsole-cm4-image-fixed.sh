@@ -84,18 +84,65 @@ sleep 1
 
 # Find the actual mapper devices created
 MAPPER_DEVICES=$(ls /dev/mapper/loop*p* 2>/dev/null | grep -E "loop[0-9]+p[12]$" | sort)
+echo "Debug: Found mapper devices:"
+echo "${MAPPER_DEVICES}"
 if [ -z "${MAPPER_DEVICES}" ]; then
     echo "Error: No mapper devices found!"
+    echo "Contents of /dev/mapper/:"
+    ls -la /dev/mapper/
     exit 1
 fi
 
+# Get the first device to extract the loop number
+FIRST_DEVICE=$(echo "${MAPPER_DEVICES}" | head -n1)
+echo "Debug: First mapper device: ${FIRST_DEVICE}"
+
 # Get the correct loop device number from the mapper devices
-MAPPER_LOOP_NUM=$(echo ${MAPPER_DEVICES} | head -1 | grep -o 'loop[0-9]*' | grep -o '[0-9]*')
+MAPPER_LOOP_NUM=$(echo "${FIRST_DEVICE}" | sed 's/.*loop\([0-9]*\)p[0-9]*/\1/')
+echo "Debug: Extracted MAPPER_LOOP_NUM='${MAPPER_LOOP_NUM}'"
 echo "Using mapper devices for loop${MAPPER_LOOP_NUM}"
 
 # kpartx creates mappings in /dev/mapper/
-mount /dev/mapper/loop${MAPPER_LOOP_NUM}p2 ${MOUNT_POINT}
-mount /dev/mapper/loop${MAPPER_LOOP_NUM}p1 ${MOUNT_POINT}/boot/
+if [ -z "${MAPPER_LOOP_NUM}" ]; then
+    echo "Error: Could not determine mapper loop number!"
+    exit 1
+fi
+
+# Construct the device paths
+DEVICE_P2="/dev/mapper/loop${MAPPER_LOOP_NUM}p2"
+DEVICE_P1="/dev/mapper/loop${MAPPER_LOOP_NUM}p1"
+
+echo "Debug: DEVICE_P2='${DEVICE_P2}'"
+echo "Debug: DEVICE_P1='${DEVICE_P1}'"
+echo "Debug: MOUNT_POINT='${MOUNT_POINT}'"
+
+# Verify devices exist before mounting
+if [ ! -b "${DEVICE_P2}" ]; then
+    echo "Error: Device ${DEVICE_P2} does not exist!"
+    echo "Available block devices in /dev/mapper:"
+    ls -la /dev/mapper/loop* 2>/dev/null || echo "No loop devices found"
+    exit 1
+fi
+
+if [ ! -b "${DEVICE_P1}" ]; then
+    echo "Error: Device ${DEVICE_P1} does not exist!"
+    exit 1
+fi
+
+echo "Mounting ${DEVICE_P2} to ${MOUNT_POINT}..."
+mount "${DEVICE_P2}" "${MOUNT_POINT}"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to mount ${DEVICE_P2}"
+    exit 1
+fi
+
+mkdir -p ${MOUNT_POINT}/boot
+echo "Mounting ${DEVICE_P1} to ${MOUNT_POINT}/boot..."
+mount "${DEVICE_P1}" "${MOUNT_POINT}/boot"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to mount ${DEVICE_P1}"
+    exit 1
+fi
 
 echo "Setting up chroot environment..."
 cd ${MOUNT_POINT}
