@@ -40,6 +40,18 @@ trap cleanup EXIT
 # Create mount point if it doesn't exist
 mkdir -p ${MOUNT_POINT}
 
+# Clean up any existing loop devices for this image
+echo "Checking for existing loop devices..."
+EXISTING_LOOPS=$(losetup -a | grep "${IMAGE_NAME}" | cut -d: -f1)
+if [ ! -z "${EXISTING_LOOPS}" ]; then
+    echo "Found existing loop devices, cleaning up..."
+    for loop in ${EXISTING_LOOPS}; do
+        echo "Removing ${loop}..."
+        kpartx -d ${loop} 2>/dev/null || true
+        losetup -d ${loop} 2>/dev/null || true
+    done
+fi
+
 # Check if image exists
 if [ ! -f "${IMAGE_DIR}/${IMAGE_XZ}" ]; then
     echo "Error: Image file ${IMAGE_XZ} not found in ${IMAGE_DIR}"
@@ -67,9 +79,23 @@ echo "Loop device: ${LOOP_DEVICE}"
 LOOP_NUM=$(echo ${LOOP_DEVICE} | grep -o '[0-9]*$')
 
 echo "Mounting partitions..."
+# Wait a moment for device mappings to be created
+sleep 1
+
+# Find the actual mapper devices created
+MAPPER_DEVICES=$(ls /dev/mapper/loop*p* 2>/dev/null | grep -E "loop[0-9]+p[12]$" | sort)
+if [ -z "${MAPPER_DEVICES}" ]; then
+    echo "Error: No mapper devices found!"
+    exit 1
+fi
+
+# Get the correct loop device number from the mapper devices
+MAPPER_LOOP_NUM=$(echo ${MAPPER_DEVICES} | head -1 | grep -o 'loop[0-9]*' | grep -o '[0-9]*')
+echo "Using mapper devices for loop${MAPPER_LOOP_NUM}"
+
 # kpartx creates mappings in /dev/mapper/
-mount /dev/mapper/loop${LOOP_NUM}p2 ${MOUNT_POINT}
-mount /dev/mapper/loop${LOOP_NUM}p1 ${MOUNT_POINT}/boot/
+mount /dev/mapper/loop${MAPPER_LOOP_NUM}p2 ${MOUNT_POINT}
+mount /dev/mapper/loop${MAPPER_LOOP_NUM}p1 ${MOUNT_POINT}/boot/
 
 echo "Setting up chroot environment..."
 cd ${MOUNT_POINT}
