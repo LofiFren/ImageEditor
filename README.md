@@ -3,8 +3,9 @@
 This repository contains Docker-based tools for working with disk images:
 
 1. **[Kali Linux Image Editor](kali-linux-image-editor.md)** - Automated tool for creating Kali Linux images for uConsole CM4
-2. **[Image Comparison Tool](image-comparison-tool.md)** - General-purpose image analysis and modification utilities
-3. **[Quick Reference](quick-reference.md)** - Common commands and workflows
+2. **[uConsole Terminal-Only Image](uconsole-terminal-image.md)** - Raspberry Pi OS Lite build that boots straight to a text login, for learning Linux
+3. **[Image Comparison Tool](image-comparison-tool.md)** - General-purpose image analysis and modification utilities
+4. **[Quick Reference](quick-reference.md)** - Common commands and workflows
 
 ## Prerequisites
 
