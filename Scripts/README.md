@@ -15,6 +15,10 @@ This directory contains scripts for analyzing, fixing, and creating disk images,
 
 ### Image Creation
 - **create-uconsole-cm4-image-fixed.sh** - Creates Kali Linux image for uConsole CM4
+- **create-uconsole-terminal.sh** - Creates terminal-only Raspberry Pi OS Lite image for uConsole CM4 (see [uconsole-terminal-image.md](../uconsole-terminal-image.md))
+
+### Shared Libraries
+- **lib/uconsole-drivers.sh** - ClockworkPi kernel/display driver install, boot reconciliation, console rotation. Sourced by the terminal build; single source of truth for getting the uConsole panel working.
 
 ### Mounting Operations
 - **mount.sh** - Mounts image partitions to /mnt/image
