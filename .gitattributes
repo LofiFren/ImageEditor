@@ -1,0 +1,5 @@
+# Shell scripts, PKGBUILDs and configs run inside a Linux container and on the
+# uConsole. With Windows line endings (CRLF), a script fails with
+# "bad interpreter: No such file or directory", which names the wrong cause.
+# Keep every text file LF on checkout, whatever the host.
+* text=auto eol=lf

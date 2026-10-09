@@ -19,6 +19,11 @@ This directory contains scripts for analyzing, fixing, and creating disk images,
 
 ### Shared Libraries
 - **lib/uconsole-drivers.sh** - ClockworkPi kernel/display driver install, boot reconciliation, console rotation. Sourced by the terminal build; single source of truth for getting the uConsole panel working.
+- **create-uconsole-omarchy.sh** - Creates the Arch Linux ARM Omarchy image for uConsole CM4, as real Omarchy (`OMARCHY_EDITION=real`) or the Omarchy-styled Hyprland (default). See [uconsole-omarchy-image.md](../uconsole-omarchy-image.md)
+- **lib/uconsole-arch-kernel.sh** - The Arch counterpart of `uconsole-drivers.sh`: puts ClockworkPi's CM4 kernel and the Pi GPU firmware into an Arch root
+- **use-clockworkpi-kernel.sh** - Converts an already built Omarchy image to ClockworkPi's kernel
+- **omarchy-port/** - Repackages Omarchy for aarch64 and installs it (see [omarchy-port/README.md](omarchy-port/README.md))
+- **omarchy-look/** - Config files for the Omarchy-styled edition, and the `uconsole-hyprland` launcher both editions use
 
 ### Mounting Operations
 - **mount.sh** - Mounts image partitions to /mnt/image

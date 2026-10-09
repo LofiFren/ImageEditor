@@ -1,0 +1,70 @@
+# Repackage Omarchy's x86_64 'omarchy' package for aarch64 (uConsole CM4).
+#
+# The upstream package contains no compiled code -- it is shell scripts,
+# Hyprland Lua config, Quickshell QML, themes and images -- so the files are
+# taken unchanged from the official x86_64 build. What changes is the metadata:
+#
+#   - arch is aarch64
+#   - the Limine / snapper dependencies are dropped. A Raspberry Pi boots from
+#     its firmware reading config.txt, not from Limine, and the uConsole image
+#     is ext4, not btrfs, so there is nothing for snapper to snapshot.
+#
+# Upstream: https://github.com/basecamp/omarchy (MIT)
+
+pkgname=omarchy
+pkgver=4.0.4
+_uprel=1
+pkgrel=1
+pkgdesc="Beautiful, modern, and opinionated Arch Linux by DHH (uConsole aarch64 repackage)"
+arch=(aarch64)
+url="https://github.com/basecamp/omarchy"
+license=(MIT)
+conflicts=(omarchy-dev)
+depends=(
+  omarchy-keyring
+  "omarchy-settings=${pkgver}"
+  hyprland
+  quickshell
+  uwsm
+  sddm
+  xdg-desktop-portal-hyprland
+  wireplumber
+  pipewire
+  gnome-keyring
+  gum
+  jq
+  git
+  perl
+  fakeroot
+  pacman-contrib
+  ttf-jetbrains-mono-nerd-basic
+)
+options=(!strip !debug)
+source=("https://pkgs.omarchy.org/stable/x86_64/${pkgname}-${pkgver}-${_uprel}-x86_64.pkg.tar.zst")
+noextract=("${pkgname}-${pkgver}-${_uprel}-x86_64.pkg.tar.zst")
+sha256sums=('78fa778d48180aaf776b44f89ae86780f78e7b47440aa20faeb4a1be9240339c')
+
+# Fail if the package contains any ELF binary. file(1) is run without its
+# seccomp sandbox (-S): under fakeroot in a container that sandbox gets file
+# killed, and a guard that cannot look must fail rather than pass.
+_no_elf_binaries() {
+  local types
+  types="$(find "${pkgdir}" -type f -exec file -S -b {} +)" || {
+    echo "ERROR: could not inspect the package contents with file(1)." >&2
+    return 1
+  }
+  if grep -q 'ELF' <<<"${types}"; then
+    echo "ERROR: upstream package now contains ELF binaries; it cannot be repackaged as-is." >&2
+    return 1
+  fi
+}
+
+package() {
+  bsdtar -xpf "${srcdir}/${pkgname}-${pkgver}-${_uprel}-x86_64.pkg.tar.zst" -C "${pkgdir}" \
+    --exclude .PKGINFO --exclude .BUILDINFO --exclude .MTREE --exclude .INSTALL
+
+  # Guard the assumption this whole package rests on. If upstream ever ships a
+  # compiled binary, it is x86_64 and would fail at runtime on the uConsole --
+  # better to fail the build here.
+  _no_elf_binaries
+}

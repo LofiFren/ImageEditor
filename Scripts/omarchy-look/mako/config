@@ -1,0 +1,12 @@
+# Notifications in Omarchy's Tokyo Night colours.
+font=JetBrainsMono Nerd Font 10
+background-color=#1a1b26
+text-color=#a9b1d6
+border-color=#7aa2f7
+border-size=2
+padding=10
+width=380
+anchor=top-right
+outer-margin=10
+default-timeout=5000
+max-icon-size=32

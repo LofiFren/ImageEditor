@@ -1,0 +1,22 @@
+#!/bin/bash
+# Start Hyprland on the uConsole's own screen.
+#
+# Picks the vc4 display device (see /etc/profile.d/uconsole-drm.sh for why),
+# then hands any arguments to Hyprland. Used by the Omarchy-look image's tty1
+# login and as the real-Omarchy image's SDDM greeter compositor:
+#   uconsole-hyprland                          plain session
+#   uconsole-hyprland -- --config FILE         SDDM greeter
+
+. /etc/profile.d/uconsole-drm.sh
+
+if [ -z "${AQ_DRM_DEVICES:-}" ]; then
+    echo "uconsole-hyprland: no vc4 display device found; letting Hyprland pick." >&2
+fi
+
+# start-hyprland is the supervised launcher in current Hyprland and takes
+# Hyprland's own arguments after "--". The bare binary takes them directly.
+if command -v start-hyprland >/dev/null 2>&1; then
+    exec start-hyprland "$@"
+fi
+[ "${1:-}" = "--" ] && shift
+exec Hyprland "$@"
