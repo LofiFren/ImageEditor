@@ -703,16 +703,21 @@ if [ "${OMARCHY_EDITION}" = "real" ]; then
     # laptop, but on a 1280x720 five-inch panel they leave room for very
     # little. Scale 1, and the panel's rotation, set in the user's own
     # monitors.lua, which is where Omarchy expects personal overrides.
-    sed -i -e 's/^local omarchy_gdk_scale = .*/local omarchy_gdk_scale = 1/' \
-           -e 's/^local omarchy_monitor_scale = .*/local omarchy_monitor_scale = 1/' "${MONITORS}"
-    cat >> "${MONITORS}" << LUA
+    bash "${LOOK_DIR}/hypr/uconsole-monitors.sh" "${MONITORS}" "${HYPR_TRANSFORM}"
+    # Accounts added later start from /etc/skel: give them the same settings,
+    # or a second user's desktop comes up sideways and oversized.
+    bash "${LOOK_DIR}/hypr/uconsole-monitors.sh" \
+        "${MOUNT_POINT}/etc/skel/.config/hypr/monitors.lua" "${HYPR_TRANSFORM}"
 
--- ClockworkPi uConsole: the DSI panel is a portrait 720x1280 mounted sideways.
--- transform 3 = 270 degrees, which reads landscape. Try 1 if it is upside down.
-hl.monitor({ output = "DSI-1", mode = "preferred", position = "auto", scale = 1, transform = ${HYPR_TRANSFORM} })
-LUA
-    grep -q '^local omarchy_monitor_scale = 1$' "${MONITORS}" \
-        || { echo "ERROR: could not set Omarchy's monitor scale -- monitors.lua changed shape" >&2; exit 1; }
+    # Omarchy's logo on screen from the login screen to the desktop, for every
+    # account: on the session's text console until Hyprland is up (profile.d),
+    # then in foot until Omarchy's shell has drawn (XDG autostart). Together
+    # ~15 s on a CM4 that would otherwise be a black or empty screen.
+    install -m 0755 "${LOOK_DIR}/bin/uconsole-session-splash" "${MOUNT_POINT}/usr/local/bin/uconsole-session-splash"
+    install -m 0644 "${LOOK_DIR}/profile.d/uconsole-session-splash.sh" \
+        "${MOUNT_POINT}/etc/profile.d/uconsole-session-splash.sh"
+    install -m 0644 "${LOOK_DIR}/autostart/uconsole-session-splash.desktop" \
+        "${MOUNT_POINT}/etc/xdg/autostart/uconsole-session-splash.desktop"
 
     # The SDDM login screen runs its own Hyprland with its own config, so it
     # needs the same rotation -- and, like the desktop, the vc4 display device.
@@ -729,6 +734,10 @@ LUA
 [Wayland]
 CompositorCommand=/usr/local/bin/uconsole-hyprland -- --config /etc/sddm/uconsole-greeter.lua
 SDDM
+
+    # Omarchy's login screen is single-user: it always signs in the last user,
+    # so a second account could never log in. Use a copy with a user picker.
+    bash "${LOOK_DIR}/sddm/install-theme.sh" "${MOUNT_POINT}"
 
     # Pre-select the Omarchy session. SDDM otherwise offers whichever session
     # sorts first -- plain Hyprland, without Omarchy's uwsm environment.
@@ -986,6 +995,15 @@ if [ "${OMARCHY_EDITION}" = "real" ]; then
     grep -q 'output = "DSI-1"' "${MOUNT_POINT}/home/${DESKTOP_USER}/.config/hypr/monitors.lua" || fail "uConsole monitor line missing."
     [ -L "${MOUNT_POINT}/etc/systemd/system/display-manager.service" ] || fail "SDDM is not enabled -- no login screen."
     [ -f "${MOUNT_POINT}/etc/sddm.conf.d/20-uconsole.conf" ] || fail "uConsole SDDM config missing."
+    [ -f "${MOUNT_POINT}/usr/share/sddm/themes/omarchy-uconsole/Main.qml" ] \
+        && grep -q '^Current=omarchy-uconsole$' "${MOUNT_POINT}/etc/sddm.conf.d/20-uconsole.conf" \
+        || fail "the login screen's user picker is not installed -- a second account could not sign in."
+    grep -q 'output = "DSI-1"' "${MOUNT_POINT}/etc/skel/.config/hypr/monitors.lua" \
+        || fail "new accounts would get a sideways desktop: /etc/skel's monitors.lua has no uConsole rotation."
+    [ -x "${MOUNT_POINT}/usr/local/bin/uconsole-session-splash" ] \
+        && [ -f "${MOUNT_POINT}/etc/profile.d/uconsole-session-splash.sh" ] \
+        && [ -f "${MOUNT_POINT}/etc/xdg/autostart/uconsole-session-splash.desktop" ] \
+        || fail "the login splash is not installed."
     grep -q '^\[uconsole-arch\]' "${MOUNT_POINT}/etc/pacman.conf" || fail "the uConsole kernel repo was dropped from pacman.conf."
     [ ! -e "${MOUNT_POINT}/etc/mkinitcpio.conf.d/omarchy_hooks.conf" ] || fail "Omarchy's PC initramfs hooks are present -- next kernel update would not boot."
 else

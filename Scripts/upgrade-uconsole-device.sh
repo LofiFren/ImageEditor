@@ -13,7 +13,10 @@
 #     uconsole-kernel-cm4-rpi, so `omarchy update` stops asking to reboot for
 #     a kernel update that never happened, and removes Arch's unused
 #     linux-aarch64 kernel;
-#   - makes the gamepad's Select button act as Super, Omarchy's main key.
+#   - makes the gamepad's Select button act as Super, Omarchy's main key;
+#   - real Omarchy: a login screen that can choose between user accounts and
+#     shows progress after Enter, a splash while the desktop loads, and the
+#     uConsole's screen settings for accounts created from now on.
 # The kernel itself is the same one already running: no reboot needed.
 
 set -euo pipefail
@@ -66,6 +69,23 @@ if ! journalctl -u uconsole-select-super --since "${STARTED}" -o cat | grep -q '
     exit 1
 fi
 echo "    Select is now Super."
+
+if [ -f /usr/share/sddm/themes/omarchy/Main.qml ]; then
+    echo "==> Login screen user picker"
+    bash "${SCRIPT_DIR}/omarchy-look/sddm/install-theme.sh" /
+    echo "    Installed; it appears the next time the login screen starts (reboot)."
+
+    echo "==> Splash from the login screen to the desktop"
+    install -m 0755 "${SCRIPT_DIR}/omarchy-look/bin/uconsole-session-splash" /usr/local/bin/uconsole-session-splash
+    install -m 0644 "${SCRIPT_DIR}/omarchy-look/profile.d/uconsole-session-splash.sh" \
+        /etc/profile.d/uconsole-session-splash.sh
+    install -m 0644 "${SCRIPT_DIR}/omarchy-look/autostart/uconsole-session-splash.desktop" \
+        /etc/xdg/autostart/uconsole-session-splash.desktop
+
+    echo "==> Screen settings for new accounts"
+    bash "${SCRIPT_DIR}/omarchy-look/hypr/uconsole-monitors.sh" /etc/skel/.config/hypr/monitors.lua
+    echo "    Accounts created before this keep their own monitors.lua; see the docs."
+fi
 
 pacman -Qqo "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz" >/dev/null \
     || { echo "ERROR: pacman does not own the running kernel." >&2; exit 1; }

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=uConsole session splash
+Comment=Shows Omarchy's logo while the desktop loads after login
+Exec=foot --app-id=uconsole-splash --fullscreen /usr/local/bin/uconsole-session-splash
+OnlyShowIn=Hyprland;
+NoDisplay=true

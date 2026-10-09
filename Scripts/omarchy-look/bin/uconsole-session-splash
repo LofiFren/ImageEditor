@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# A full-screen splash while Omarchy's desktop loads after login. On a CM4
+# Hyprland is up within seconds, but Omarchy's shell (wallpaper and bar) takes
+# around ten more, and until then the screen is empty. This shows Omarchy's
+# logo and a "starting omarchy" line, and quits as soon as the bar is on
+# screen -- or after a minute, whatever happens.
+#
+# Two ways to run it:
+#   inside foot (no argument), started by
+#     /etc/xdg/autostart/uconsole-session-splash.desktop once Hyprland is up;
+#   on the session's text console (--console /dev/ttyN), started by
+#     /etc/profile.d/uconsole-session-splash.sh as the session starts, to fill
+#     the seconds before Hyprland draws anything.
+
+LOGO=/usr/share/omarchy/logo.txt
+MESSAGE="starting omarchy"
+
+if [ "${1:-}" = "--console" ]; then
+    CONSOLE="${2:?usage: uconsole-session-splash --console /dev/ttyN}"
+    exec > "${CONSOLE}" 2>/dev/null < "${CONSOLE}" || exit 0
+    # The Linux console: Omarchy's colours via the palette, a readable font,
+    # and an ASCII spinner (console fonts have no braille).
+    setfont ter-v28b 2>/dev/null
+    printf '\e]P01a1b26\e]P47aa2f7\e]P87f88b5'
+    BLUE=$'\e[34m'
+    DIM=$'\e[90m'
+    RESET=$'\e[0m\e[40m'
+    FRAMES=('-' '\' '|' '/')
+    printf '\e[40m'
+else
+    CONSOLE=""
+    FRAMES=(⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
+    BLUE=$'\e[38;2;122;162;247m'
+    DIM=$'\e[38;2;127;136;181m'
+    RESET=$'\e[0m'
+fi
+
+finished() {
+    if [ -n "${CONSOLE}" ]; then
+        # Hyprland has the screen once its socket exists.
+        compgen -G "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr/*/.socket.sock" >/dev/null
+    else
+        hyprctl layers 2>/dev/null | grep -q 'namespace: omarchy-bar,'
+    fi
+}
+
+restore() {
+    printf '\e[0m\e[?25h'
+    [ -n "${CONSOLE}" ] && printf '\e]R'    # the console's default palette
+}
+trap restore EXIT
+
+logo_lines=()
+[ -r "${LOGO}" ] && mapfile -t logo_lines < "${LOGO}"
+logo_width=0
+for line in "${logo_lines[@]}"; do
+    (( ${#line} > logo_width )) && logo_width=${#line}
+done
+
+# Draw the logo centred for the current size. Called again whenever the size
+# changes: foot starts small and goes full screen a moment later.
+draw() {
+    read -r ROWS COLS < <(stty size 2>/dev/null)
+    ROWS=${ROWS:-24}; COLS=${COLS:-80}
+    printf '\e[?25l\e[2J'
+    local top=$(( (ROWS - ${#logo_lines[@]} - 3) / 2 ))
+    (( top < 1 )) && top=1
+    local left=$(( (COLS - logo_width) / 2 + 1 ))
+    (( left < 1 )) && left=1
+    local i
+    for i in "${!logo_lines[@]}"; do
+        printf '\e[%d;%dH%s%s%s' $(( top + i )) "${left}" "${BLUE}" "${logo_lines[$i]}" "${RESET}"
+    done
+    STATUS_ROW=$(( top + ${#logo_lines[@]} + 2 ))
+    STATUS_COL=$(( (COLS - ${#MESSAGE} - 2) / 2 + 1 ))
+    (( STATUS_COL < 1 )) && STATUS_COL=1
+    DRAWN_SIZE="${ROWS}x${COLS}"
+}
+
+draw
+frame=0
+for (( tick = 0; tick < 600; tick++ )); do
+    read -r rows cols < <(stty size 2>/dev/null)
+    [ "${rows}x${cols}" != "${DRAWN_SIZE}" ] && draw
+    printf '\e[%d;%dH%s%s %s%s%s' "${STATUS_ROW}" "${STATUS_COL}" \
+        "${BLUE}" "${FRAMES[frame]}" "${DIM}" "${MESSAGE}" "${RESET}"
+    frame=$(( (frame + 1) % ${#FRAMES[@]} ))
+    # Check every half second, animate every tenth.
+    if (( tick % 5 == 0 )) && finished; then
+        [ -z "${CONSOLE}" ] && sleep 0.5    # let the bar and wallpaper paint
+        exit 0
+    fi
+    sleep 0.1
+done
