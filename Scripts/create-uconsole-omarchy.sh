@@ -252,6 +252,13 @@ cleanup() {
             echo "  Fix the error above and run the same command again." >&2
         fi
         echo ""                                                        >&2
+    else
+        # Last line of a good run: the banner prints before the image is
+        # unmounted, so say plainly when it is safe to flash.
+        echo ""
+        echo "DONE. images/${IMAGE_NAME} ($(du -h --apparent-size "${IMAGE_DIR}/${IMAGE_NAME}" | cut -f1)) is ready to flash."
+        echo "  Flash it with Raspberry Pi Imager: Use custom, then OS customisation: No."
+        echo ""
     fi
 }
 trap cleanup EXIT
@@ -276,9 +283,60 @@ case "${WIFI_COUNTRY}" in
 esac
 unset WIFI_COUNTRY_IN
 
-read -rp "Timezone, e.g. America/New_York [${TIMEZONE}]: " TIMEZONE_IN
-TIMEZONE="${TIMEZONE_IN:-${TIMEZONE}}"
-unset TIMEZONE_IN
+# Timezone: a number from the list, or a zone or city name typed loosely
+# ("los angeles" -> America/Los_Angeles). Checked against the container's own
+# zone database now, so a typo costs a retry, not a half-finished build.
+COMMON_TIMEZONES=(
+    UTC America/New_York America/Chicago America/Denver America/Phoenix
+    America/Los_Angeles America/Anchorage Pacific/Honolulu America/Toronto
+    America/Mexico_City America/Sao_Paulo Europe/London Europe/Paris
+    Europe/Berlin Africa/Johannesburg Asia/Kolkata Asia/Shanghai Asia/Tokyo
+    Australia/Sydney Pacific/Auckland
+)
+
+# Print the zone names matching $1, one per line (exact match: just that one).
+find_timezones() {
+    local want="${1// /_}" zi=/usr/share/zoneinfo pattern
+    want="${want#/}"
+    case "${want}" in *..*|"") return 0 ;; esac
+    if [ -f "${zi}/${want}" ]; then
+        pattern="./${want}"
+    elif [[ "${want}" == */* ]]; then
+        pattern="./${want}"
+    else
+        pattern="*/${want}"
+    fi
+    (cd "${zi}" && find . \( -type f -o -type l \) -ipath "${pattern}" ! -path './posix/*' ! -path './right/*' \
+        -exec sh -c 'head -c4 "$1" | grep -q TZif' _ {} \; -print) | sed 's|^\./||' | sort
+}
+
+echo "Timezone -- pick a number, or type a city or zone name (e.g. Los Angeles):"
+for i in "${!COMMON_TIMEZONES[@]}"; do
+    printf "  %2d) %-22s" "$((i + 1))" "${COMMON_TIMEZONES[$i]}"
+    [ $(((i + 1) % 3)) -eq 0 ] && echo ""
+done
+echo ""
+while true; do
+    read -rp "Timezone [${TIMEZONE}]: " TIMEZONE_IN || exit 1
+    TIMEZONE_IN="${TIMEZONE_IN:-${TIMEZONE}}"
+    if [[ "${TIMEZONE_IN}" =~ ^[0-9]+$ ]]; then
+        if [ "${TIMEZONE_IN}" -ge 1 ] && [ "${TIMEZONE_IN}" -le "${#COMMON_TIMEZONES[@]}" ]; then
+            TIMEZONE="${COMMON_TIMEZONES[$((TIMEZONE_IN - 1))]}"
+            break
+        fi
+        echo "  Pick a number from 1 to ${#COMMON_TIMEZONES[@]}."
+        continue
+    fi
+    mapfile -t TZ_MATCHES < <(find_timezones "${TIMEZONE_IN}")
+    case "${#TZ_MATCHES[@]}" in
+        1) TIMEZONE="${TZ_MATCHES[0]}"; break ;;
+        0) echo "  No timezone matches '${TIMEZONE_IN}'. Try a big city near you, or Region/City." ;;
+        *) echo "  '${TIMEZONE_IN}' matches several; type one of:"
+           printf '    %s\n' "${TZ_MATCHES[@]}" ;;
+    esac
+done
+echo "  Using ${TIMEZONE}."
+unset TIMEZONE_IN TZ_MATCHES
 
 case "${HYPR_TRANSFORM}" in [0-7]) ;; *) echo "HYPR_TRANSFORM must be 0-7."; exit 1 ;; esac
 case "${CONSOLE_ROTATE}" in [0-3]) ;; *) echo "CONSOLE_ROTATE must be 0-3."; exit 1 ;; esac
