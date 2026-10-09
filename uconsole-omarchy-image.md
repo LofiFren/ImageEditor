@@ -235,31 +235,7 @@ Privacy & Security. For Linux and Windows, see the terminal build's
 
 ## Using it
 
-**The Super key:** the uConsole keyboard has no dedicated Super (Windows) key.
-Its firmware ([keymaps.ino](https://github.com/clockworkpi/uConsole/blob/master/Code/uconsole_keyboard/keymaps.ino))
-sends Super for **Fn + left Alt**. While Fn is held, though, the other keys
-change too: Space toggles the keyboard backlight, 1–0 become F1–F10, K becomes
-Page Down. So `Fn + Alt + Space` does *not* open a menu. The firmware fixes each
-key's meaning when it's pressed, so this sequence works:
-
-1. Hold **Fn**, then hold **Alt**. Super is now held.
-2. **Let go of Fn**, keeping Alt down.
-3. Press the shortcut key, e.g. **Space**.
-
-To make the physical Alt key act as Super instead, add this line to
-`~/.config/hypr/input.lua` (real edition). It keeps Omarchy's own keyboard
-options. Fn + Alt then gives plain Alt.
-
-```lua
-hl.config({ input = { kb_options = "compose:caps,shift:both_capslock_cancel,altwin:swap_alt_win" } })
-```
-
-In the look edition, add `kb_options = altwin:swap_alt_win` to the `input`
-block in `~/.config/hypr/hyprland.conf`, or rebuild with `HYPR_MOD=ALT`.
-
-**Real edition:** it's Omarchy. `Super + Space` opens the Omarchy menu,
-`Super + K` lists every key binding, and `Super + Enter` opens **foot**,
-Omarchy's default terminal. The
+**Real edition:** it's Omarchy, and **foot** is its default terminal. The
 [Omarchy manual](https://learn.omacom.io/2/the-omarchy-manual) covers the rest.
 Your settings are in `~/.config/hypr/*.lua`. The uConsole's screen line is in
 `monitors.lua`.
@@ -394,5 +370,4 @@ the desktop is usable. The community kernel on its own gave a black screen (see
 
 Not yet confirmed:
 
-- the optional Alt-as-Super swap above, on the device
 - the look edition on hardware, which shares the same boot chain

@@ -805,12 +805,12 @@ FIRSTBOOT
 
 if [ "${OMARCHY_EDITION}" = "real" ]; then
     DONE_HINT_1="The Omarchy login screen comes next -- log in as '${DESKTOP_USER}'."
-    DONE_HINT_2="Super: hold Fn, hold Alt, let go of Fn (keep Alt), then press the key."
-    DONE_HINT_3="Super + Space: Omarchy menu.  Super + Enter: foot, the default terminal."
+    DONE_HINT_2="The default terminal is foot."
+    DONE_HINT_3="The Omarchy manual: learn.omacom.io"
 else
     DONE_HINT_1="Log in as '${DESKTOP_USER}' and the desktop starts."
     DONE_HINT_2="Launcher: ${HYPR_MOD} + Space     Terminal: ${HYPR_MOD} + Enter"
-    DONE_HINT_3="(Super: hold Fn + Alt, let go of Fn. Or click the top-left icons.)"
+    DONE_HINT_3="(or click the two icons at the top left)"
 fi
 sed -i -e "s|__DESKTOP_USER__|${DESKTOP_USER}|g" \
        -e "s|__DONE_HINT_1__|${DONE_HINT_1}|" \
@@ -922,8 +922,7 @@ echo " Setup:  first boot asks for ${DESKTOP_USER}'s password, then wifi."
 echo "         This .img contains no passwords and no wifi key."
 if [ "${OMARCHY_EDITION}" = "real" ]; then
 echo " Login:  Omarchy's login screen (SDDM), as ${DESKTOP_USER}."
-echo " Keys:   Super = hold Fn, hold Alt, let go of Fn (keep Alt), press the key."
-echo "         Super + Enter opens foot, Omarchy's default terminal."
+echo " Term:   foot is Omarchy's default terminal."
 echo "         Ctrl+Alt+F2 is a plain console if the desktop will not start."
 echo " Note:   confirmed booting on a uConsole CM4 with KERNEL=clockworkpi."
 else
