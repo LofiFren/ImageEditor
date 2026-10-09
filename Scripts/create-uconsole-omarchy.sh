@@ -807,6 +807,11 @@ STAMP=/var/lib/uconsole-firstboot-pending
 # clear and nmtui both need a terminal type; a systemd unit may not set one.
 export TERM="${TERM:-linux}"
 
+# Bring this console to the front. The quiet boot sends the kernel console to
+# tty3, and the screen can be left showing that instead of tty1: the wizard
+# then waits for a password nobody can see until they press Ctrl+Alt+F1.
+chvt 1 2>/dev/null
+
 # Kernel and systemd messages go to the console. With VERBOSE_BOOT that is this
 # very screen, and joining wifi produces a burst of them (driver, DHCP, regdom)
 # that paints over nmtui and leaves it hard to read or navigate. Hold them
@@ -948,6 +953,7 @@ fail() { echo "ERROR: $*" >&2; echo "       This image is not usable." >&2; exit
 
 [ -x "${MOUNT_POINT}/usr/local/sbin/uconsole-firstboot" ] || fail "first-boot wizard is not executable."
 [ -e "${MOUNT_POINT}/var/lib/uconsole-firstboot-pending" ] || fail "first-boot trigger missing -- wizard would never run."
+[ -x "${MOUNT_POINT}/usr/bin/chvt" ] || fail "chvt is missing -- the first-boot wizard may come up on a hidden console."
 [ -L "${MOUNT_POINT}/etc/systemd/system/multi-user.target.wants/uconsole-firstboot.service" ] \
     || fail "first-boot service is not enabled -- no way to set a password."
 grep -q "^${DESKTOP_USER}:!:" "${MOUNT_POINT}/etc/shadow" || fail "${DESKTOP_USER} is not in the expected locked state."
