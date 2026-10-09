@@ -230,8 +230,7 @@ Privacy & Security. For Linux and Windows, see the terminal build's
 4. **Look edition:** at the console login prompt, log in as `uconsole` and
    Hyprland starts.
    **Real edition:** Omarchy's login screen (SDDM) appears. Log in as
-   `uconsole`, and the Omarchy desktop starts. `Super + Space` opens the
-   Omarchy menu, and `Super + K` lists every key binding.
+   `uconsole`, and the Omarchy desktop starts.
 
 ---
 
