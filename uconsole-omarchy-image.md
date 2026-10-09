@@ -176,7 +176,9 @@ It asks two things:
 
 - **Wifi country code** (Enter accepts `US`). This sets the radio's regulatory
   domain on the kernel command line.
-- **Timezone**, e.g. `America/New_York` (Enter accepts `UTC`).
+- **Timezone.** Pick a number from the list it shows, or type a city or zone
+  name, e.g. `Los Angeles` or `Europe/London` (Enter accepts `UTC`). It asks
+  again if the name isn't found.
 
 No passwords are asked for. The image ships with locked accounts and sets the
 password on first boot, the same as the terminal build.
