@@ -252,6 +252,13 @@ cleanup() {
             echo "  Fix the error above and run the same command again." >&2
         fi
         echo ""                                                        >&2
+    else
+        # Last line of a good run: the banner prints before the image is
+        # unmounted, so say plainly when it is safe to flash.
+        echo ""
+        echo "DONE. images/${IMAGE_NAME} ($(du -h --apparent-size "${IMAGE_DIR}/${IMAGE_NAME}" | cut -f1)) is ready to flash."
+        echo "  Flash it with Raspberry Pi Imager: Use custom, then OS customisation: No."
+        echo ""
     fi
 }
 trap cleanup EXIT
