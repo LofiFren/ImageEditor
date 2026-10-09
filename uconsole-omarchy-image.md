@@ -265,6 +265,13 @@ wifi icon opens the network picker.
 Configs live in `~/.config/{hypr,waybar,mako,alacritty,fuzzel}` and are plain
 files you can edit.
 
+### If boot stops on a few status lines and the setup screen never appears
+
+Images built before 2026-10-09 can leave the screen on the wrong console while
+the first-boot wizard waits on tty1. Press **Ctrl+Alt+F1** (on the uConsole,
+F1 is Fn + 1: hold Ctrl and Alt, then Fn, then press 1). Newer builds switch
+to the wizard by themselves.
+
 ### If the screen stays black from power-on
 
 That means the problem is before Linux, or in the kernel's panel driver, not
