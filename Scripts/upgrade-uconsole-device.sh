@@ -53,12 +53,18 @@ install -m 0644 "${SCRIPT_DIR}/omarchy-look/systemd/uconsole-select-super.servic
     /etc/systemd/system/uconsole-select-super.service
 systemctl daemon-reload
 systemctl enable uconsole-select-super.service
+STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
 systemctl restart uconsole-select-super.service
-sleep 2
-systemctl is-active --quiet uconsole-select-super.service \
-    || { echo "ERROR: the Select-as-Super service did not start: journalctl -u uconsole-select-super" >&2; exit 1; }
-grep -q 'Name="uConsole Select as Super"' /proc/bus/input/devices \
-    || { echo "ERROR: the Select-as-Super key did not appear: journalctl -u uconsole-select-super" >&2; exit 1; }
+# Running is not enough: it must have found the gamepad, which it logs.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    journalctl -u uconsole-select-super --since "${STARTED}" -o cat | grep -q 'is now Super' && break
+    sleep 1
+done
+if ! journalctl -u uconsole-select-super --since "${STARTED}" -o cat | grep -q 'is now Super'; then
+    echo "ERROR: the Select-as-Super service did not find the gamepad:" >&2
+    journalctl -u uconsole-select-super --since "${STARTED}" -o cat >&2
+    exit 1
+fi
 echo "    Select is now Super."
 
 pacman -Qqo "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz" >/dev/null \

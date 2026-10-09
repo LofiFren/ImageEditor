@@ -12,6 +12,7 @@ come from the real keyboard.
 The gamepad is not grabbed: games still see Select as a gamepad button.
 """
 
+import sys
 import time
 
 import evdev
@@ -21,9 +22,20 @@ GAMEPAD_NAME = "ClockworkPI uConsole"
 SELECT = e.BTN_BASE3
 
 
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
 def find_gamepad():
-    for path in evdev.list_devices():
-        dev = evdev.InputDevice(path)
+    # Read-only on purpose: the service unit grants read access to input
+    # devices and nothing more, and list_devices() by default skips any device
+    # it cannot also write.
+    for path in evdev.list_devices(writable=False):
+        try:
+            dev = evdev.InputDevice(path, readonly=True)
+        except OSError as err:
+            log(f"cannot open {path}: {err}")
+            continue
         if dev.name == GAMEPAD_NAME and SELECT in dev.capabilities().get(e.EV_KEY, []):
             return dev
         dev.close()
@@ -32,19 +44,27 @@ def find_gamepad():
 
 def main():
     super_key = evdev.UInput({e.EV_KEY: [e.KEY_LEFTMETA]}, name="uConsole Select as Super")
+    log(f"virtual Super key is {super_key.device.path}")
+    missing_logged = False
     while True:
         pad = find_gamepad()
         if pad is None:
+            if not missing_logged:
+                log(f"waiting for the '{GAMEPAD_NAME}' gamepad")
+                missing_logged = True
             time.sleep(2)
             continue
+        missing_logged = False
+        log(f"Select on {pad.path} is now Super")
         try:
             for ev in pad.read_loop():
                 if ev.type == e.EV_KEY and ev.code == SELECT and ev.value in (0, 1):
                     super_key.write(e.EV_KEY, e.KEY_LEFTMETA, ev.value)
                     super_key.syn()
-        except OSError:
+        except OSError as err:
             # The gamepad went away (suspend, USB reset). Never leave Super
             # stuck down; look for the gamepad again.
+            log(f"lost the gamepad ({err}); looking again")
             super_key.write(e.EV_KEY, e.KEY_LEFTMETA, 0)
             super_key.syn()
             time.sleep(1)
