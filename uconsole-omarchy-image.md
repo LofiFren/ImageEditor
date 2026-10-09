@@ -97,6 +97,14 @@ So by default (`KERNEL=clockworkpi`) the build:
   (`devterm-panel-uc` and friends), ClockworkPi's `config.txt`, and the modules,
   which go into `/usr/lib/modules`. It's pinned to the SHA-256 in ClockworkPi's
   apt index.
+- installs that kernel as a local pacman package, `uconsole-kernel-cm4-rpi`,
+  which provides `linux`. pacman then knows the running kernel, so
+  `omarchy update` doesn't ask to reboot for a kernel update that never
+  happened. Arch's generic `linux-aarch64` kernel is removed: the firmware
+  never loads it.
+- turns on `DisableSandboxFilesystem` in `pacman.conf`. pacman's download
+  sandbox needs Landlock, which this 5.10 kernel predates, and without the
+  setting every download fails.
 - boots by `PARTUUID`. This kernel has no initramfs, and without one the kernel
   can't find the root filesystem by label.
 
