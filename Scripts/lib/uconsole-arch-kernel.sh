@@ -93,6 +93,18 @@ uconsole_arch_use_clockworkpi_kernel() {
     sed -i "s|root=LABEL=alarm-root|root=PARTUUID=${ptuuid}-02 rootfstype=ext4|" "${root}/boot/cmdline.txt"
     rm -rf "${work}"
 
+    # pacman 7 sandboxes its downloads with Landlock, which arrived in Linux
+    # 5.13. On this 5.10 kernel every download fails ("Landlock is not
+    # supported by the kernel"), so the device could never update. Builds
+    # don't see it: they run pacman with --disable-sandbox on the host kernel.
+    # Turn off only the filesystem part, as pacman.conf(5) advises for such
+    # kernels; the syscall filter still applies.
+    if grep -q '^#DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
+        sed -i 's/^#DisableSandboxFilesystem/DisableSandboxFilesystem/' "${root}/etc/pacman.conf"
+    elif ! grep -q '^DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
+        sed -i '/^\[options\]/a DisableSandboxFilesystem' "${root}/etc/pacman.conf"
+    fi
+
     # Verify the parts that, if missing, mean a black screen.
     local f
     for f in kernel8.img bcm2711-rpi-cm4.dtb start4.elf fixup4.dat overlays/devterm-panel-uc.dtbo; do
@@ -102,6 +114,8 @@ uconsole_arch_use_clockworkpi_kernel() {
         || { echo "ERROR: the uConsole panel driver is not in the module index" >&2; return 1; }
     grep -q "root=PARTUUID=${ptuuid}-02" "${root}/boot/cmdline.txt" \
         || { echo "ERROR: cmdline.txt does not boot by PARTUUID" >&2; return 1; }
+    grep -q '^DisableSandboxFilesystem' "${root}/etc/pacman.conf" \
+        || { echo "ERROR: pacman.conf would leave the device unable to download updates" >&2; return 1; }
     echo "    boots ClockworkPi ${UCONSOLE_CWPI_KVER} from PARTUUID=${ptuuid}-02"
     return 0
 }
