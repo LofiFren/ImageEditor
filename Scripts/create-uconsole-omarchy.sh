@@ -11,8 +11,9 @@
 #
 # Base: the community uConsole Arch Linux ARM image
 #   https://github.com/wdkdot/uconsole-arch
-# which already carries the uConsole kernel, DSI panel driver and boot config,
-# and keeps receiving kernel updates through its own pacman repo.
+# for the Arch system itself. By default (KERNEL=clockworkpi) its kernel is
+# replaced by ClockworkPi's own CM4 kernel plus the Pi GPU firmware, which the
+# base image lacks -- see lib/uconsole-arch-kernel.sh.
 #
 # The 'look' edition adds Hyprland with Omarchy's look -- Omarchy 3.8.4's
 # gaps, borders, blur, animations, Waybar layout and Tokyo Night theme -- from
@@ -154,6 +155,18 @@ else
     CHECK_BINS="Hyprland waybar hyprlock fuzzel alacritty"
 fi
 
+# ------------------------------------------------------- existing output
+#
+# Checked before anything else -- before the questions, and before the cleanup
+# handler, which would otherwise call a perfectly good image incomplete.
+# Re-running on an already built image would layer a second build on the first.
+if [ -f "${IMAGE_DIR}/${IMAGE_NAME}" ]; then
+    echo "Error: images/${IMAGE_NAME} already exists, from an earlier run."
+    echo "       Flash it, or delete it to build again. From the repo folder:"
+    echo "           rm -f images/${IMAGE_NAME}"
+    exit 1
+fi
+
 # ------------------------------------------------------------------- cleanup
 
 LOOP_DEVICE=""
@@ -239,15 +252,6 @@ case "${CONSOLE_ROTATE}" in [0-3]) ;; *) echo "CONSOLE_ROTATE must be 0-3."; exi
 # ------------------------------------------------------------------ base image
 
 mkdir -p "${MOUNT_POINT}"
-
-if [ -f "${IMAGE_DIR}/${IMAGE_NAME}" ]; then
-    # Same trap as the terminal build: re-running on an already modified image
-    # layers a second build on the first. Refuse rather than guess.
-    echo "Error: ${IMAGE_DIR}/${IMAGE_NAME} already exists."
-    echo "       It is the output of an earlier run. Remove it and start again:"
-    echo "           rm -f ${IMAGE_DIR}/${IMAGE_NAME}"
-    exit 1
-fi
 
 if [ ! -f "${IMAGE_DIR}/${IMAGE_ZST}" ]; then
     echo "==> Downloading community uConsole Arch image (${BASE_RELEASE})..."
@@ -349,6 +353,19 @@ fi
 if [ "$(uname -m)" != "aarch64" ] && [ -f /usr/bin/qemu-aarch64-static ]; then
     echo "==> Non-arm64 host: installing qemu-aarch64-static into the rootfs..."
     cp /usr/bin/qemu-aarch64-static "${MOUNT_POINT}/usr/bin/"
+fi
+
+# The rest of the build runs ARM programs inside the image. On an x86 machine
+# that needs the host kernel to hand ARM binaries to qemu (binfmt_misc).
+# Docker Desktop sets that up itself; Docker on x86 Linux does not, and
+# without it every step fails with "Exec format error". Check once, here.
+if ! chroot "${MOUNT_POINT}" /usr/bin/true 2>/dev/null; then
+    echo "ERROR: this machine cannot run ARM programs inside the image." >&2
+    echo "       On x86 Linux, enable ARM emulation on the HOST, then retry:" >&2
+    echo "         Debian/Ubuntu:  sudo apt install qemu-user-static binfmt-support" >&2
+    echo "         Fedora:         sudo dnf install qemu-user-static" >&2
+    echo "         Arch:           sudo pacman -S qemu-user-static-binfmt" >&2
+    exit 1
 fi
 
 echo "==> Setting up chroot..."

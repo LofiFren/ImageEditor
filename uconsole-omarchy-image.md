@@ -116,56 +116,58 @@ entry is still in `pacman.conf`, though.
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- ~25 GB free disk space
-- An SD card big enough for the image: **16 GB or larger** for the look edition
-  (about 11 GB), **32 GB or larger** for the real edition (about 17 GB). The
-  root partition grows to fill the card on first boot.
-- Internet access during the build. The base image (~650 MB) and the desktop
-  packages are downloaded.
+|  | Look edition | Real edition |
+|---|---|---|
+| Free disk space | ~25 GB | ~40 GB |
+| SD card | 16 GB or larger | 32 GB or larger |
+| Image size | ~11 GB | ~17 GB |
+| Build time, Apple Silicon Mac | ~20 min | ~40 min (~15 min on a rebuild) |
+| Build time, Intel Mac / x86 PC | several times longer: the ARM steps run under emulation | 2+ hours |
 
-You don't need to download anything first. The script fetches the base image
-into `images/` and reuses it on later runs.
+- **Hardware: a uConsole with a CM4 Lite,** the CM4 without on-board eMMC. A CM4
+  *with* eMMC boots from its eMMC and ignores the SD card slot.
+- **Docker and Docker Compose.** Docker Desktop on macOS and Windows sets up
+  everything needed.
+- **On x86 Linux with plain Docker, enable ARM emulation on the host first.**
+  The build runs ARM programs inside the image, and without it every step fails
+  with `Exec format error`. The script checks for this and stops with the
+  command to run:
+  - Debian/Ubuntu: `sudo apt install qemu-user-static binfmt-support`
+  - Fedora: `sudo dnf install qemu-user-static`
+  - Arch: `sudo pacman -S qemu-user-static-binfmt`
+- **Internet access during the build.** Everything is downloaded and
+  checksum-verified automatically: the base image (~650 MB), the packages,
+  Omarchy, and ClockworkPi's kernel. You don't need to fetch anything by hand.
+
+Rebuilds are much faster: downloaded packages are kept in
+`images/pacman-cache/`.
 
 ---
 
 ## Build
 
-### 1. Clear any previous output
+Run these from the repo folder on your computer. The build itself runs inside
+the container.
+
+### 1. Start the container
 
 ```bash
-rm -f images/uconsole-omarchy-cm4.img
+docker compose up -d --build
 ```
 
-The script refuses to run over an existing output image rather than build a
-second time on top of the first.
+### 2. Run the build
 
-### 2. Start the container
-
-The Dockerfile now includes `zstd`, which the base image needs, so rebuild once:
+Real Omarchy:
 
 ```bash
-docker compose build
-docker compose up -d
+docker compose exec -e OMARCHY_EDITION=real image-editor /workdir/Scripts/create-uconsole-omarchy.sh
 ```
 
-### 3. Run the build
+Or the look edition:
 
 ```bash
-docker compose exec image-editor \
-  bash -c "chmod +x /workdir/Scripts/create-uconsole-omarchy.sh && \
-           /workdir/Scripts/create-uconsole-omarchy.sh"
+docker compose exec image-editor /workdir/Scripts/create-uconsole-omarchy.sh
 ```
-
-For **real Omarchy**, add `-e OMARCHY_EDITION=real`:
-
-```bash
-docker compose exec -e OMARCHY_EDITION=real image-editor \
-  /workdir/Scripts/create-uconsole-omarchy.sh
-```
-
-The output is `images/uconsole-omarchy-real-cm4.img` instead of
-`uconsole-omarchy-cm4.img`, so the two editions can sit side by side.
 
 It asks two things:
 
@@ -176,30 +178,44 @@ It asks two things:
 No passwords are asked for. The image ships with locked accounts and sets the
 password on first boot, the same as the terminal build.
 
-Installing the desktop is the slow part, especially on an Intel Mac where the
-ARM chroot runs under emulation. Arch Linux ARM's mirrors are also slow at
+Installing the packages is the slow part. Arch Linux ARM's mirrors are slow at
 times, and the script retries pacman three times. The run is finished when you
-see the `Omarchy uConsole image built` banner. If it says
-`BUILD DID NOT COMPLETE`, delete the image and run it again.
+see the `Omarchy uConsole image built` banner. The result is in `images/`:
 
-### 4. Flash
+| Edition | File |
+|---|---|
+| real | `images/uconsole-omarchy-real-cm4.img` |
+| look | `images/uconsole-omarchy-cm4.img` |
 
-Same as the terminal build (see its
-[flashing section](uconsole-terminal-image.md#4-flash-macos--see-platforms-for-linuxwindows)),
-with the file name changed:
+If it says `BUILD DID NOT COMPLETE`, delete that file and run the build again.
+The script won't build over an existing image. To rebuild, delete the old one
+first, e.g. `rm -f images/uconsole-omarchy-real-cm4.img`.
+
+### 3. Flash
+
+**Easiest, on any OS: [Raspberry Pi Imager](https://www.raspberrypi.com/software/).**
+Choose *Use custom* and pick the `.img` from the table above, then your SD
+card. When it asks about OS customisation, choose **No**: its settings would
+add a user and wifi on top of the image's own first-boot setup. Imager also
+verifies the write.
+
+Or with `dd` on macOS, from your own Terminal window. Check the disk number
+with `diskutil list` every time; writing to the wrong disk is unrecoverable.
 
 ```bash
 diskutil list
 diskutil unmountDisk /dev/diskN
-sudo dd if=images/uconsole-omarchy-cm4.img of=/dev/rdiskN bs=4m status=progress
+sudo dd if=images/uconsole-omarchy-real-cm4.img of=/dev/rdiskN bs=4m status=progress
 sync
 diskutil eject /dev/diskN
 ```
 
-Raspberry Pi Imager's *Use custom* option works too. Turn **off** its
-"customise OS settings" prompt.
+For the look edition, use `uconsole-omarchy-cm4.img`. If macOS says
+`Operation not permitted`, give Terminal *Full Disk Access* in System Settings →
+Privacy & Security. For Linux and Windows, see the terminal build's
+[platform notes](uconsole-terminal-image.md#a-note-on-platforms).
 
-### 5. First boot
+### 4. First boot
 
 1. The root partition grows to fill the card, and a fresh pacman keyring is
    generated for this device. Nothing to do.
@@ -215,6 +231,14 @@ Raspberry Pi Imager's *Use custom* option works too. Turn **off** its
 ---
 
 ## Using it
+
+**Real edition:** it's Omarchy. `Super + Space` opens the Omarchy menu,
+`Super + K` lists every key binding, and the
+[Omarchy manual](https://learn.omacom.io/2/the-omarchy-manual) covers the rest.
+Your settings are in `~/.config/hypr/*.lua`. The uConsole's screen line is in
+`monitors.lua`.
+
+**Look edition:**
 
 | Keys | Does |
 |---|---|
@@ -311,7 +335,7 @@ Things that look odd in the script but are there on purpose:
 - **`pacman --disable-sandbox`.** pacman's download sandbox doesn't work under
   qemu emulation and fails every download.
 - **`-Syu`, never `-Sy` then `-S`.** A partial upgrade is the classic way to break
-  an Arch system. This also brings the kernel up to date from the uConsole repo.
+  an Arch system.
 - **The keyring, SSH host keys and machine-id are deleted at the end.** An image
   is flashed onto many cards, and none of them should share a private key.
   They're regenerated on first boot.
@@ -334,7 +358,7 @@ Real edition only:
 - **The first-boot wizard runs before SDDM,** so the login screen never
   appears before there is a password to check.
 
-### Not yet confirmed on hardware
+### Hardware status
 
 **Confirmed on a uConsole CM4:** the real edition boots with the default
 ClockworkPi kernel. The first-boot wizard, the Omarchy login screen and the

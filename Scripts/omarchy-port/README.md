@@ -1,7 +1,7 @@
-# Omarchy on the uConsole (aarch64 port) — work in progress
+# Omarchy on the uConsole (aarch64 port)
 
-An attempt to run **real Omarchy**, not the Omarchy-look desktop, on the
-ClockworkPi uConsole CM4.
+Runs **real Omarchy**, not the Omarchy-look desktop, on the ClockworkPi
+uConsole CM4. The resulting image boots and runs on hardware.
 
 ## Why a port is possible
 
