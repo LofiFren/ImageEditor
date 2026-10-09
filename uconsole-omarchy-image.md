@@ -244,6 +244,29 @@ Privacy & Security. For Linux and Windows, see the terminal build's
 
 ## Using it
 
+### Super is the Select button
+
+Omarchy is driven by the Super key, and the uConsole keyboard doesn't have
+one. **Hold Select**, one of the uConsole's gamepad buttons, as Super:
+
+| Keys | Does |
+|---|---|
+| `Select + Space` | Omarchy menu |
+| `Select + Return` | terminal |
+| `Select + K` | every key binding |
+| `Select + W` | close window |
+| `Select + 1..4` | switch workspace |
+
+Select works with any key, the same as a real Super key. A small service,
+`uconsole-select-super`, mirrors Select onto a virtual keyboard as Super. The
+gamepad itself is untouched, so games still see Select. The service runs as
+root only because `/dev/uinput` requires it. systemd locks it down (no network,
+no writes, no capabilities; `systemd-analyze security` rates it 0.9, "SAFE"),
+and its virtual keyboard can only ever press Super. To turn it off:
+`sudo systemctl disable --now uconsole-select-super`.
+
+### The rest
+
 **Real edition:** it's Omarchy, and **foot** is its default terminal. The
 [Omarchy manual](https://learn.omacom.io/2/the-omarchy-manual) covers the rest.
 Your settings are in `~/.config/hypr/*.lua`. The uConsole's screen line is in
@@ -253,7 +276,7 @@ Your settings are in `~/.config/hypr/*.lua`. The uConsole's screen line is in
 
 | Keys | Does |
 |---|---|
-| `SUPER + Enter` | terminal |
+| `SUPER + Enter` | terminal (`SUPER` is the Select button) |
 | `SUPER + Space` | app launcher |
 | `SUPER + W` | close window |
 | `SUPER + F` | fullscreen |
@@ -279,9 +302,9 @@ files you can edit.
 repository. ClockworkPi's kernel and Omarchy's own scripts stay at the
 versions the image was built with (see [Omarchy on ARM](#omarchy-on-arm)).
 
-On a uConsole flashed from an image built before 2026-10-09, updates fail with
-`Landlock is not supported by the kernel`, or keep asking to reboot. Fix it in
-place, on the uConsole:
+On a uConsole flashed from an older image, updates may fail with
+`Landlock is not supported by the kernel` or keep asking to reboot, and Select
+may not work as Super. Bring it up to date in place, on the uConsole:
 
 ```bash
 git clone https://github.com/LofiFren/ImageEditor
@@ -404,3 +427,5 @@ the desktop is usable. The community kernel on its own gave a black screen (see
 Not yet confirmed:
 
 - the look edition on hardware, which shares the same boot chain
+- Select as Super on a freshly flashed image (tested by upgrading a running
+  uConsole)

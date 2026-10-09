@@ -1,0 +1,41 @@
+[Unit]
+Description=uConsole Select button as the Super key
+
+[Service]
+ExecStart=/usr/local/bin/uconsole-select-super
+Restart=always
+RestartSec=2
+
+# It runs as root only because /dev/uinput is root-only. Everything else is
+# taken away: it can read input devices and create its one virtual key, and
+# nothing more -- no network, no writes, no capabilities, no new privileges.
+DevicePolicy=closed
+DeviceAllow=/dev/uinput rw
+DeviceAllow=char-input r
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=none
+IPAddressDeny=any
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

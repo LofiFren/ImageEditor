@@ -12,7 +12,8 @@
 #   - installs ClockworkPi's kernel as the pacman package
 #     uconsole-kernel-cm4-rpi, so `omarchy update` stops asking to reboot for
 #     a kernel update that never happened, and removes Arch's unused
-#     linux-aarch64 kernel.
+#     linux-aarch64 kernel;
+#   - makes the gamepad's Select button act as Super, Omarchy's main key.
 # The kernel itself is the same one already running: no reboot needed.
 
 set -euo pipefail
@@ -45,6 +46,27 @@ else
     uconsole_cwpi_install_kernel_package / "${WORK}/deb"
 fi
 
+echo "==> Select as Super"
+pacman -Q python-evdev >/dev/null 2>&1 || pacman -S --needed --noconfirm python-evdev
+install -m 0755 "${SCRIPT_DIR}/omarchy-look/bin/uconsole-select-super" /usr/local/bin/uconsole-select-super
+install -m 0644 "${SCRIPT_DIR}/omarchy-look/systemd/uconsole-select-super.service" \
+    /etc/systemd/system/uconsole-select-super.service
+systemctl daemon-reload
+systemctl enable uconsole-select-super.service
+STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
+systemctl restart uconsole-select-super.service
+# Running is not enough: it must have found the gamepad, which it logs.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    journalctl -u uconsole-select-super --since "${STARTED}" -o cat | grep -q 'is now Super' && break
+    sleep 1
+done
+if ! journalctl -u uconsole-select-super --since "${STARTED}" -o cat | grep -q 'is now Super'; then
+    echo "ERROR: the Select-as-Super service did not find the gamepad:" >&2
+    journalctl -u uconsole-select-super --since "${STARTED}" -o cat >&2
+    exit 1
+fi
+echo "    Select is now Super."
+
 pacman -Qqo "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz" >/dev/null \
     || { echo "ERROR: pacman does not own the running kernel." >&2; exit 1; }
 grep -q 'panel-cwu50' "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/modules.dep" \
@@ -54,3 +76,4 @@ grep -q 'panel-cwu50' "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/modules.dep" \
 
 echo ""
 echo "Done. Nothing to reboot for: the running kernel is unchanged."
+echo "Hold Select as Super: Select + Space opens the Omarchy menu."
