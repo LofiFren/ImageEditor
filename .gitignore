@@ -1,0 +1,33 @@
+# Image files
+images/*.img
+images/*.img.xz
+images/*.img.zst
+images/*.iso
+images/*.raw
+
+# Backup files
+backups/*
+!backups/.gitkeep
+
+# Temporary files
+*.swp
+*.tmp
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Log files
+*.log
+
+# Docker volumes (if created locally)
+.docker/
+
+# Omarchy build: shared package cache and port test workspace
+images/pacman-cache/
+images/omarchy-port/
