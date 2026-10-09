@@ -38,6 +38,11 @@ that with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): pick
 *Use custom*, and say **No** to OS customisation. On first boot it asks for a
 password, then offers wifi.
 
+**The Super key is the Select button.** Omarchy is driven by Super, and the
+uConsole keyboard doesn't have one, so hold **Select** (a gamepad button)
+instead: `Select + Space` opens the Omarchy menu, `Select + Return` a terminal,
+and `Select + K` lists every key binding. The default terminal is foot.
+
 Details, options and troubleshooting: [uconsole-omarchy-image.md](uconsole-omarchy-image.md).
 
 ## Kali Linux image
