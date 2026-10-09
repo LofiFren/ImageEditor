@@ -139,7 +139,7 @@ grim slurp wl-clipboard \
 qt5-wayland qt6-wayland gnome-themes-extra \
 ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji terminus-font \
 mesa nautilus imv mpv btop fastfetch starship \
-man-db less git cloud-guest-utils"
+man-db less git cloud-guest-utils python-evdev"
 
 # The browser is the single heaviest package. Set EXTRA_PACKAGES="" to leave
 # it out and save around a gigabyte.
@@ -148,7 +148,7 @@ EXTRA_PACKAGES="${EXTRA_PACKAGES-chromium}"
 # The real edition gets its desktop from Omarchy; this is only what the build
 # and first boot themselves need.
 if [ "${OMARCHY_EDITION}" = "real" ]; then
-    DESKTOP_PACKAGES="cloud-guest-utils terminus-font man-db less git"
+    DESKTOP_PACKAGES="cloud-guest-utils terminus-font man-db less git python-evdev"
     EXTRA_PACKAGES=""
     CHECK_BINS="growpart"
 else
@@ -623,6 +623,13 @@ fi
 install -m 0755 "${LOOK_DIR}/bin/uconsole-hyprland" "${MOUNT_POINT}/usr/local/bin/uconsole-hyprland"
 install -m 0644 "${LOOK_DIR}/profile.d/uconsole-drm.sh" "${MOUNT_POINT}/etc/profile.d/uconsole-drm.sh"
 
+# Both editions: the uConsole has no Super key, and Omarchy is driven by it.
+# The gamepad's Select button stands in. See uconsole-select-super.
+install -m 0755 "${LOOK_DIR}/bin/uconsole-select-super" "${MOUNT_POINT}/usr/local/bin/uconsole-select-super"
+install -m 0644 "${LOOK_DIR}/systemd/uconsole-select-super.service" \
+    "${MOUNT_POINT}/etc/systemd/system/uconsole-select-super.service"
+chroot "${MOUNT_POINT}" systemctl enable uconsole-select-super.service
+
 # --------------------------------------------------------------- the account
 
 echo "==> Creating '${DESKTOP_USER}' and removing the stock 'alarm' user..."
@@ -876,12 +883,12 @@ FIRSTBOOT
 
 if [ "${OMARCHY_EDITION}" = "real" ]; then
     DONE_HINT_1="The Omarchy login screen comes next -- log in as '${DESKTOP_USER}'."
-    DONE_HINT_2="The default terminal is foot."
-    DONE_HINT_3="The Omarchy manual: learn.omacom.io"
+    DONE_HINT_2="Hold Select as Super: Select + Space opens the Omarchy menu."
+    DONE_HINT_3="The default terminal is foot. Manual: learn.omacom.io"
 else
     DONE_HINT_1="Log in as '${DESKTOP_USER}' and the desktop starts."
     DONE_HINT_2="Launcher: ${HYPR_MOD} + Space     Terminal: ${HYPR_MOD} + Enter"
-    DONE_HINT_3="(or click the two icons at the top left)"
+    DONE_HINT_3="Select works as Super. Or click the two icons at the top left."
 fi
 sed -i -e "s|__DESKTOP_USER__|${DESKTOP_USER}|g" \
        -e "s|__DONE_HINT_1__|${DONE_HINT_1}|" \
@@ -962,6 +969,12 @@ fail() { echo "ERROR: $*" >&2; echo "       This image is not usable." >&2; exit
 [ -x "${MOUNT_POINT}/usr/local/sbin/uconsole-firstboot" ] || fail "first-boot wizard is not executable."
 [ -e "${MOUNT_POINT}/var/lib/uconsole-firstboot-pending" ] || fail "first-boot trigger missing -- wizard would never run."
 [ -x "${MOUNT_POINT}/usr/bin/chvt" ] || fail "chvt is missing -- the first-boot wizard may come up on a hidden console."
+[ -L "${MOUNT_POINT}/etc/systemd/system/multi-user.target.wants/uconsole-select-super.service" ] \
+    || fail "the Select-as-Super service is not enabled -- no way to press Omarchy's Super key."
+chroot "${MOUNT_POINT}" pacman -Q python-evdev >/dev/null 2>&1 \
+    || fail "python-evdev is missing -- the Select-as-Super service cannot run."
+chroot "${MOUNT_POINT}" systemd-analyze verify /etc/systemd/system/uconsole-select-super.service >/dev/null 2>&1 \
+    || fail "the Select-as-Super unit does not verify: systemd-analyze verify uconsole-select-super.service"
 [ -L "${MOUNT_POINT}/etc/systemd/system/multi-user.target.wants/uconsole-firstboot.service" ] \
     || fail "first-boot service is not enabled -- no way to set a password."
 grep -q "^${DESKTOP_USER}:!:" "${MOUNT_POINT}/etc/shadow" || fail "${DESKTOP_USER} is not in the expected locked state."
@@ -1001,6 +1014,7 @@ else
 echo " Login:  ${DESKTOP_USER} on tty1 starts Hyprland."
 echo "         Ctrl+Alt+F2 is a plain console if the desktop will not start."
 fi
+echo " Super:  hold Select (the gamepad button). Select + Space = Omarchy menu."
 echo " SSH:    enabled (root locked; log in as ${DESKTOP_USER})"
 echo ""
 echo " CHECKPOINT -- in this order:"

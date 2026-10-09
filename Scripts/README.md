@@ -22,9 +22,9 @@ This directory contains scripts for analyzing, fixing, and creating disk images,
 - **create-uconsole-omarchy.sh** - Creates the Arch Linux ARM Omarchy image for uConsole CM4, as real Omarchy (`OMARCHY_EDITION=real`) or the Omarchy-styled Hyprland (default). See [uconsole-omarchy-image.md](../uconsole-omarchy-image.md)
 - **lib/uconsole-arch-kernel.sh** - The Arch counterpart of `uconsole-drivers.sh`: puts ClockworkPi's CM4 kernel and the Pi GPU firmware into an Arch root
 - **use-clockworkpi-kernel.sh** - Converts an already built Omarchy image to ClockworkPi's kernel
-- **upgrade-uconsole-device.sh** - Runs on an already flashed uConsole (`sudo`): applies newer builds' fixes in place, so `omarchy update` can download and stops asking for needless reboots
+- **upgrade-uconsole-device.sh** - Runs on an already flashed uConsole (`sudo`): applies newer builds' fixes in place: `omarchy update` can download and stops asking for needless reboots, and Select becomes Super
 - **omarchy-port/** - Repackages Omarchy for aarch64 and installs it (see [omarchy-port/README.md](omarchy-port/README.md))
-- **omarchy-look/** - Config files for the Omarchy-styled edition, and the `uconsole-hyprland` launcher both editions use
+- **omarchy-look/** - Config files for the Omarchy-styled edition, plus what both editions use: the `uconsole-hyprland` launcher and the `uconsole-select-super` service (the Select button as Super)
 
 ### Mounting Operations
 - **mount.sh** - Mounts image partitions to /mnt/image
