@@ -62,21 +62,73 @@ uconsole_arch_use_clockworkpi_kernel() {
     # kernel package is removed so that pacman can never write its kernel and
     # device tree back over these.
     echo "==> Installing Pi firmware, removing the community kernel..."
-    chroot "${root}" pacman --disable-sandbox -S --needed --noconfirm raspberrypi-bootloader firmware-raspberrypi \
+    chroot "${root}" pacman --disable-sandbox -S --needed --noconfirm raspberrypi-bootloader firmware-raspberrypi fakeroot \
         || { rm -rf "${work}"; return 1; }
     if chroot "${root}" pacman -Q linux-uconsole-cm4-git >/dev/null 2>&1; then
         chroot "${root}" pacman -Rdd --noconfirm linux-uconsole-cm4-git || { rm -rf "${work}"; return 1; }
     fi
 
-    echo "==> Installing ClockworkPi's ${UCONSOLE_CWPI_KVER} kernel, device tree and overlays..."
-    install -m 0644 "${work}/deb/boot/kernel8.img"         "${root}/boot/kernel8.img"
-    install -m 0644 "${work}/deb/boot/bcm2711-rpi-cm4.dtb" "${root}/boot/bcm2711-rpi-cm4.dtb"
-    rm -rf "${root}/boot/overlays"
-    cp -r "${work}/deb/boot/overlays" "${root}/boot/overlays"
+    # Installed as a pacman package, not loose files, so pacman knows the
+    # running kernel. Omarchy's updater looks for a pacman-owned
+    # /usr/lib/modules/$(uname -r)/vmlinuz and, finding none, asks to reboot
+    # for a "kernel update" after every update. It provides 'linux', standing
+    # in for Arch's generic kernel, which this board never boots.
+    echo "==> Packaging ClockworkPi's ${UCONSOLE_CWPI_KVER} kernel, device tree and overlays..."
+    local pkgsrc="${root}/tmp/uconsole-kernel-pkg"
+    local builder=uconsole-kernel-builder
+    rm -rf "${pkgsrc}"
+    mkdir -p "${pkgsrc}/files/boot" "${pkgsrc}/files/usr/lib/modules"
+    install -m 0644 "${work}/deb/boot/kernel8.img"         "${pkgsrc}/files/boot/kernel8.img"
+    install -m 0644 "${work}/deb/boot/bcm2711-rpi-cm4.dtb" "${pkgsrc}/files/boot/bcm2711-rpi-cm4.dtb"
+    cp -r "${work}/deb/boot/overlays" "${pkgsrc}/files/boot/overlays"
+    cp -a "${work}/deb/lib/modules/${UCONSOLE_CWPI_KVER}" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}"
+    install -m 0644 "${work}/deb/boot/kernel8.img" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz"
+    # depmod's index files are generated on install (below), as Arch's own
+    # kernel packages do, so pacman doesn't flag them as altered afterwards.
+    rm -f "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}"/modules.{alias,alias.bin,builtin.alias.bin,builtin.bin,dep,dep.bin,devname,softdep,symbols,symbols.bin,weakdep}
+    cat > "${pkgsrc}/PKGBUILD" << PKGBUILD
+pkgname=uconsole-kernel-cm4-rpi
+pkgver=0.13
+pkgrel=1
+pkgdesc="ClockworkPi's uConsole CM4 kernel ${UCONSOLE_CWPI_KVER}, device tree and overlays"
+arch=(aarch64)
+url="https://github.com/clockworkpi/apt"
+license=(GPL-2.0-only)
+provides=("linux=${UCONSOLE_CWPI_KVER%%-*}")
+conflicts=(linux-uconsole-cm4-git)
+options=(!strip !debug)
+install=uconsole-kernel.install
+package() { cp -a "\${startdir}/files/." "\${pkgdir}/"; }
+PKGBUILD
+    cat > "${pkgsrc}/uconsole-kernel.install" << INSTALL
+post_install() { depmod ${UCONSOLE_CWPI_KVER}; }
+post_upgrade() { post_install; }
+INSTALL
+    chroot "${root}" useradd -r -M -d /tmp/uconsole-kernel-pkg "${builder}" 2>/dev/null || true
+    chroot "${root}" chown -R "${builder}:" /tmp/uconsole-kernel-pkg
+    # Uncompressed: nothing to gain for a package that is installed once, and
+    # it avoids depending on a compressor inside the image.
+    if ! chroot "${root}" runuser -u "${builder}" -- bash -c \
+            "cd /tmp/uconsole-kernel-pkg && PKGDEST=/tmp/uconsole-kernel-pkg PKGEXT=.pkg.tar makepkg -d --noconfirm"; then
+        chroot "${root}" userdel "${builder}" 2>/dev/null
+        rm -rf "${work}" "${pkgsrc}"; return 1
+    fi
+    chroot "${root}" userdel "${builder}" 2>/dev/null || true
+    # Arch's generic kernel only fills /boot (a 7.x Image, initramfs and every
+    # board's device trees) and drags in updates; the firmware never loads it.
+    # It also conflicts with any other 'linux', so it must go before ours.
+    if chroot "${root}" pacman -Q linux-aarch64 >/dev/null 2>&1; then
+        chroot "${root}" pacman -R --noconfirm linux-aarch64 \
+            || { echo "ERROR: could not remove the unused linux-aarch64 kernel" >&2; rm -rf "${work}" "${pkgsrc}"; return 1; }
+    fi
+    # --overwrite: an image patched before this kept the same files unowned.
+    chroot "${root}" bash -c "pacman -U --noconfirm \
+            --overwrite '/boot/kernel8.img' --overwrite '/boot/bcm2711-rpi-cm4.dtb' \
+            --overwrite '/boot/overlays/*' --overwrite '/usr/lib/modules/${UCONSOLE_CWPI_KVER}/*' \
+            /tmp/uconsole-kernel-pkg/uconsole-kernel-cm4-rpi-*.pkg.tar" \
+        || { rm -rf "${work}" "${pkgsrc}"; return 1; }
+    rm -rf "${pkgsrc}"
 
-    rm -rf "${root}/usr/lib/modules/${UCONSOLE_CWPI_KVER}"
-    cp -a "${work}/deb/lib/modules/${UCONSOLE_CWPI_KVER}" "${root}/usr/lib/modules/${UCONSOLE_CWPI_KVER}"
-    chroot "${root}" depmod "${UCONSOLE_CWPI_KVER}"
 
     cp "${root}/boot/config.txt" "${root}/boot/config.txt.community"
     {
@@ -114,6 +166,8 @@ uconsole_arch_use_clockworkpi_kernel() {
         || { echo "ERROR: the uConsole panel driver is not in the module index" >&2; return 1; }
     grep -q "root=PARTUUID=${ptuuid}-02" "${root}/boot/cmdline.txt" \
         || { echo "ERROR: cmdline.txt does not boot by PARTUUID" >&2; return 1; }
+    chroot "${root}" pacman -Qqo "/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz" >/dev/null 2>&1 \
+        || { echo "ERROR: pacman does not own the kernel -- Omarchy would ask to reboot after every update" >&2; return 1; }
     grep -q '^DisableSandboxFilesystem' "${root}/etc/pacman.conf" \
         || { echo "ERROR: pacman.conf would leave the device unable to download updates" >&2; return 1; }
     echo "    boots ClockworkPi ${UCONSOLE_CWPI_KVER} from PARTUUID=${ptuuid}-02"
