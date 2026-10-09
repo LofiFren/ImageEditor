@@ -167,6 +167,34 @@ if [ -f "${IMAGE_DIR}/${IMAGE_NAME}" ]; then
     exit 1
 fi
 
+# ------------------------------------------------------- ARM emulation
+#
+# The build runs ARM programs inside the image. On an x86 machine the host
+# kernel must hand ARM binaries to qemu (binfmt_misc). Docker Desktop sets that
+# up itself; Docker on x86 Linux does not. Check before downloading anything --
+# a second check later, once the image is mounted, is the backstop.
+arm_emulation_help() {
+    echo "       Enable ARM emulation on the HOST (not in the container), then" >&2
+    echo "       run the same command again:" >&2
+    echo "         Ubuntu 24.04 and older, Debian:" >&2
+    echo "                       sudo apt install qemu-user-static binfmt-support" >&2
+    echo "         Ubuntu 26.04 and newer:" >&2
+    echo "                       sudo apt install qemu-user-binfmt" >&2
+    echo "         Fedora:       sudo dnf install qemu-user-static" >&2
+    echo "         Arch:         sudo pacman -S qemu-user-static-binfmt" >&2
+}
+#
+# Only conclusive when binfmt_misc is visible here: inside a container it is
+# often not mounted even though emulation works (Docker Desktop), and then the
+# test is left to the backstop, which actually runs an ARM program.
+if [ "$(uname -m)" != "aarch64" ] \
+&& [ -e /proc/sys/fs/binfmt_misc/register ] \
+&& ! grep -qs 'aarch64' /proc/sys/fs/binfmt_misc/*; then
+    echo "ERROR: this machine has no ARM emulation, and the build needs it." >&2
+    arm_emulation_help
+    exit 1
+fi
+
 # ------------------------------------------------------------------- cleanup
 
 LOOP_DEVICE=""
@@ -210,13 +238,19 @@ cleanup() {
     # Same failure mode as the terminal build: a run that dies after locking
     # the accounts but before the wizard is installed boots to a login prompt
     # nobody can get past.
+    #
+    # The half-built image is useless, and leaving it would make the next run
+    # refuse with "already exists" -- so delete it, but only one this run
+    # created (the existing-output check guarantees that) and only now that
+    # it is unmounted and detached.
     if [ "${BUILD_COMPLETE:-0}" != "1" ]; then
         echo ""                                                        >&2
         echo "  BUILD DID NOT COMPLETE."                                >&2
-        echo "  Do NOT flash ${IMAGE_NAME} -- it may have locked"       >&2
-        echo "  accounts and no way to set a password."                 >&2
-        echo "  Delete it and start again:"                             >&2
-        echo "      rm -f ${IMAGE_DIR}/${IMAGE_NAME}"                   >&2
+        if [ "${CREATED_IMAGE:-0}" = "1" ] && [ -f "${IMAGE_DIR}/${IMAGE_NAME}" ]; then
+            rm -f "${IMAGE_DIR}/${IMAGE_NAME}"
+            echo "  The unfinished images/${IMAGE_NAME} was deleted."  >&2
+            echo "  Fix the error above and run the same command again." >&2
+        fi
         echo ""                                                        >&2
     fi
 }
@@ -272,6 +306,7 @@ fi
 echo "    ok"
 
 echo "==> Decompressing to ${IMAGE_NAME}..."
+CREATED_IMAGE=1
 zstd -d -f "${IMAGE_DIR}/${IMAGE_ZST}" -o "${IMAGE_DIR}/${IMAGE_NAME}"
 
 if mountpoint -q "${MOUNT_POINT}"; then
@@ -361,10 +396,7 @@ fi
 # without it every step fails with "Exec format error". Check once, here.
 if ! chroot "${MOUNT_POINT}" /usr/bin/true 2>/dev/null; then
     echo "ERROR: this machine cannot run ARM programs inside the image." >&2
-    echo "       On x86 Linux, enable ARM emulation on the HOST, then retry:" >&2
-    echo "         Debian/Ubuntu:  sudo apt install qemu-user-static binfmt-support" >&2
-    echo "         Fedora:         sudo dnf install qemu-user-static" >&2
-    echo "         Arch:           sudo pacman -S qemu-user-static-binfmt" >&2
+    arm_emulation_help
     exit 1
 fi
 
@@ -773,11 +805,11 @@ FIRSTBOOT
 
 if [ "${OMARCHY_EDITION}" = "real" ]; then
     DONE_HINT_1="The Omarchy login screen comes next -- log in as '${DESKTOP_USER}'."
-    DONE_HINT_2="Super + Space opens the Omarchy menu."
-    DONE_HINT_3="Super + K lists every key binding."
+    DONE_HINT_2="Super is Fn + Alt on the uConsole. Super + Space: Omarchy menu, Super + K: all keys."
+    DONE_HINT_3="Super + Enter opens foot, Omarchy's default terminal."
 else
     DONE_HINT_1="Log in as '${DESKTOP_USER}' and the desktop starts."
-    DONE_HINT_2="Launcher: ${HYPR_MOD} + Space     Terminal: ${HYPR_MOD} + Enter"
+    DONE_HINT_2="Launcher: ${HYPR_MOD} + Space     Terminal: ${HYPR_MOD} + Enter   (Super = Fn + Alt)"
     DONE_HINT_3="(or click the two icons at the top left)"
 fi
 sed -i -e "s|__DESKTOP_USER__|${DESKTOP_USER}|g" \
@@ -890,6 +922,8 @@ echo " Setup:  first boot asks for ${DESKTOP_USER}'s password, then wifi."
 echo "         This .img contains no passwords and no wifi key."
 if [ "${OMARCHY_EDITION}" = "real" ]; then
 echo " Login:  Omarchy's login screen (SDDM), as ${DESKTOP_USER}."
+echo " Keys:   Super is Fn + Alt on the uConsole keyboard."
+echo "         Super + Enter opens foot, Omarchy's default terminal."
 echo "         Ctrl+Alt+F2 is a plain console if the desktop will not start."
 echo " Note:   confirmed booting on a uConsole CM4 with KERNEL=clockworkpi."
 else

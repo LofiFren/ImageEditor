@@ -127,12 +127,15 @@ entry is still in `pacman.conf`, though.
 - **Hardware: a uConsole with a CM4 Lite,** the CM4 without on-board eMMC. A CM4
   *with* eMMC boots from its eMMC and ignores the SD card slot.
 - **Docker and Docker Compose.** Docker Desktop on macOS and Windows sets up
-  everything needed.
+  everything needed. **On Windows, build under WSL2,** with the repo inside the
+  WSL filesystem (e.g. `~/ImageEditor`), not under `/mnt/c`. See the
+  [Windows notes](uconsole-terminal-image.md#windows).
 - **On x86 Linux with plain Docker, enable ARM emulation on the host first.**
   The build runs ARM programs inside the image, and without it every step fails
   with `Exec format error`. The script checks for this and stops with the
   command to run:
-  - Debian/Ubuntu: `sudo apt install qemu-user-static binfmt-support`
+  - Ubuntu 24.04 and older, Debian: `sudo apt install qemu-user-static binfmt-support`
+  - Ubuntu 26.04 and newer: `sudo apt install qemu-user-binfmt`
   - Fedora: `sudo dnf install qemu-user-static`
   - Arch: `sudo pacman -S qemu-user-static-binfmt`
 - **Internet access during the build.** Everything is downloaded and
@@ -232,8 +235,14 @@ Privacy & Security. For Linux and Windows, see the terminal build's
 
 ## Using it
 
+**The Super key:** the uConsole keyboard has no dedicated Super (Windows) key.
+Press **Fn + Alt** (the left Alt) instead. Some people swap Alt and Super in
+Hyprland so the physical Alt key acts as Super, with `kb_options =
+altwin:swap_alt_win` in the input settings. That's untested on this image.
+
 **Real edition:** it's Omarchy. `Super + Space` opens the Omarchy menu,
-`Super + K` lists every key binding, and the
+`Super + K` lists every key binding, and `Super + Enter` opens **foot**,
+Omarchy's default terminal. The
 [Omarchy manual](https://learn.omacom.io/2/the-omarchy-manual) covers the rest.
 Your settings are in `~/.config/hypr/*.lua`. The uConsole's screen line is in
 `monitors.lua`.
@@ -368,5 +377,6 @@ the desktop is usable. The community kernel on its own gave a black screen (see
 
 Not yet confirmed:
 
-- whether the uConsole keyboard's layout makes `SUPER` comfortable
+- whether Fn + Alt for Super is comfortable enough for Omarchy's key-heavy
+  workflow, or swapping Alt and Super is worth making a build option
 - the look edition on hardware, which shares the same boot chain

@@ -13,8 +13,10 @@ This repository contains Docker-based tools for working with disk images:
 Needs a uConsole with a **CM4 Lite** (an eMMC CM4 ignores the SD card), Docker,
 internet access, and about 40 GB free plus a 32 GB SD card for real Omarchy
 (25 GB and 16 GB for the lighter edition). On **x86 Linux** with plain Docker,
-enable ARM emulation first: `sudo apt install qemu-user-static binfmt-support`
-or your distro's equivalent. Docker Desktop on macOS and Windows handles that
+enable ARM emulation first. On Ubuntu 24.04 or older, run
+`sudo apt install qemu-user-static binfmt-support`. On Ubuntu 26.04+, run
+`sudo apt install qemu-user-binfmt`. The build prints the command for other
+distros. Docker Desktop on macOS and Windows handles that
 itself. Everything else downloads automatically.
 
 Expect about 40 minutes on an Apple Silicon Mac, and hours on an Intel Mac or
