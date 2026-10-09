@@ -814,6 +814,12 @@ export TERM="${TERM:-linux}"
 # then waits for a password nobody can see until they press Ctrl+Alt+F1.
 chvt 1 2>/dev/null
 
+# A readable font. The one in vconsole.conf never applies on a uConsole:
+# systemd sets it before the panel driver has loaded ("no font support"), so
+# the console keeps the tiny 8x16 default. 14x28 gives 91x25 on the
+# 1280x720 screen; a 32px font leaves 80x22, too few rows for nmtui.
+setfont ter-v28b 2>/dev/null || setfont sun12x22 2>/dev/null
+
 # Kernel and systemd messages go to the console. With VERBOSE_BOOT that is this
 # very screen, and joining wifi produces a burst of them (driver, DHCP, regdom)
 # that paints over nmtui and leaves it hard to read or navigate. Hold them

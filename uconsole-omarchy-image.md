@@ -273,6 +273,23 @@ wifi icon opens the network picker.
 Configs live in `~/.config/{hypr,waybar,mako,alacritty,fuzzel}` and are plain
 files you can edit.
 
+### Updates
+
+`omarchy update` updates the system from Arch Linux ARM and Omarchy's ARM
+repository. ClockworkPi's kernel and Omarchy's own scripts stay at the
+versions the image was built with (see [Omarchy on ARM](#omarchy-on-arm)).
+
+On a uConsole flashed from an image built before 2026-10-09, updates fail with
+`Landlock is not supported by the kernel`, or keep asking to reboot. Fix it in
+place, on the uConsole:
+
+```bash
+git clone https://github.com/LofiFren/ImageEditor
+sudo ImageEditor/Scripts/upgrade-uconsole-device.sh
+```
+
+It's safe to run more than once, and no reboot is needed afterwards.
+
 ### If boot stops on a few status lines and the setup screen never appears
 
 Images built before 2026-10-09 can leave the screen on the wrong console while

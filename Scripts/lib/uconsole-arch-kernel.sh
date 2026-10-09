@@ -26,47 +26,37 @@ UCONSOLE_CWPI_DEB_URL="https://raw.githubusercontent.com/clockworkpi/apt/main/de
 UCONSOLE_CWPI_DEB_SHA256="f8ecd5385a6ed19490d3f54ad7f406439bcdd0d293615ae2506fbcd66ed6fa3e"
 UCONSOLE_CWPI_KVER="5.10.17-v8+"
 
-uconsole_arch_use_clockworkpi_kernel() {
-    local root="$1"
-    local loop="$2"
-    local work deb ptuuid
-
-    if [ -z "${root}" ] || [ ! -f "${root}/boot/config.txt" ]; then
-        echo "uconsole_arch_use_clockworkpi_kernel: '${root}/boot' is not the boot partition" >&2
-        return 1
-    fi
-
-    # The MBR disk identifier survives dd onto the card, so PARTUUID=<id>-02
-    # names the root partition on the device too. This kernel has no
-    # initramfs, and without one root=LABEL= cannot be resolved.
-    ptuuid="$(blkid -s PTUUID -o value "${loop}")"
-    [ -n "${ptuuid}" ] || { echo "ERROR: could not read the disk identifier of ${loop}" >&2; return 1; }
-
-    work="$(mktemp -d /tmp/cwpi-kernel.XXXXXX)"
-    deb="${work}/kernel.deb"
+# Download ClockworkPi's kernel .deb, check it against the pinned SHA-256 and
+# unpack it into <work>/deb. dpkg-deb in the build container; bsdtar (always
+# on Arch) on a uConsole itself.
+uconsole_cwpi_fetch_deb() {
+    local work="$1"
+    local deb="${work}/kernel.deb"
 
     echo "==> Fetching ClockworkPi's CM4 kernel package..."
-    curl -fsSL --retry 3 -o "${deb}" "${UCONSOLE_CWPI_DEB_URL}" || { rm -rf "${work}"; return 1; }
+    curl -fsSL --retry 3 -o "${deb}" "${UCONSOLE_CWPI_DEB_URL}" || return 1
     if ! echo "${UCONSOLE_CWPI_DEB_SHA256}  ${deb}" | sha256sum -c - >/dev/null; then
         echo "ERROR: checksum mismatch for the ClockworkPi kernel package" >&2
-        rm -rf "${work}"; return 1
+        return 1
     fi
-    dpkg-deb -x "${deb}" "${work}/deb"
+    mkdir -p "${work}/deb"
+    if command -v dpkg-deb >/dev/null 2>&1; then
+        dpkg-deb -x "${deb}" "${work}/deb"
+    else
+        bsdtar -xOf "${deb}" 'data.tar.*' | bsdtar -xf - -C "${work}/deb"
+    fi
     if [ ! -f "${work}/deb/boot/kernel8.img" ] || [ ! -d "${work}/deb/lib/modules/${UCONSOLE_CWPI_KVER}" ]; then
         echo "ERROR: the ClockworkPi package does not have the expected layout" >&2
-        rm -rf "${work}"; return 1
+        return 1
     fi
+}
 
-    # GPU firmware for the CM4 and the board's wifi/bluetooth firmware come
-    # from Arch Linux ARM, so they keep updating with pacman. The community
-    # kernel package is removed so that pacman can never write its kernel and
-    # device tree back over these.
-    echo "==> Installing Pi firmware, removing the community kernel..."
-    chroot "${root}" pacman --disable-sandbox -S --needed --noconfirm raspberrypi-bootloader firmware-raspberrypi fakeroot \
-        || { rm -rf "${work}"; return 1; }
-    if chroot "${root}" pacman -Q linux-uconsole-cm4-git >/dev/null 2>&1; then
-        chroot "${root}" pacman -Rdd --noconfirm linux-uconsole-cm4-git || { rm -rf "${work}"; return 1; }
-    fi
+# Build ClockworkPi's kernel, device tree, overlays and modules (the unpacked
+# .deb in <debdir>) into a pacman package and install it into <root>, which
+# is "/" on a running uConsole. Needs makepkg and fakeroot in <root>.
+uconsole_cwpi_install_kernel_package() {
+    local root="$1"
+    local debdir="$2"
 
     # Installed as a pacman package, not loose files, so pacman knows the
     # running kernel. Omarchy's updater looks for a pacman-owned
@@ -78,11 +68,11 @@ uconsole_arch_use_clockworkpi_kernel() {
     local builder=uconsole-kernel-builder
     rm -rf "${pkgsrc}"
     mkdir -p "${pkgsrc}/files/boot" "${pkgsrc}/files/usr/lib/modules"
-    install -m 0644 "${work}/deb/boot/kernel8.img"         "${pkgsrc}/files/boot/kernel8.img"
-    install -m 0644 "${work}/deb/boot/bcm2711-rpi-cm4.dtb" "${pkgsrc}/files/boot/bcm2711-rpi-cm4.dtb"
-    cp -r "${work}/deb/boot/overlays" "${pkgsrc}/files/boot/overlays"
-    cp -a "${work}/deb/lib/modules/${UCONSOLE_CWPI_KVER}" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}"
-    install -m 0644 "${work}/deb/boot/kernel8.img" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz"
+    install -m 0644 "${debdir}/boot/kernel8.img"         "${pkgsrc}/files/boot/kernel8.img"
+    install -m 0644 "${debdir}/boot/bcm2711-rpi-cm4.dtb" "${pkgsrc}/files/boot/bcm2711-rpi-cm4.dtb"
+    cp -r "${debdir}/boot/overlays" "${pkgsrc}/files/boot/overlays"
+    cp -a "${debdir}/lib/modules/${UCONSOLE_CWPI_KVER}" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}"
+    install -m 0644 "${debdir}/boot/kernel8.img" "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}/vmlinuz"
     # depmod's index files are generated on install (below), as Arch's own
     # kernel packages do, so pacman doesn't flag them as altered afterwards.
     rm -f "${pkgsrc}/files/usr/lib/modules/${UCONSOLE_CWPI_KVER}"/modules.{alias,alias.bin,builtin.alias.bin,builtin.bin,dep,dep.bin,devname,softdep,symbols,symbols.bin,weakdep}
@@ -111,7 +101,7 @@ INSTALL
     if ! chroot "${root}" runuser -u "${builder}" -- bash -c \
             "cd /tmp/uconsole-kernel-pkg && PKGDEST=/tmp/uconsole-kernel-pkg PKGEXT=.pkg.tar makepkg -d --noconfirm"; then
         chroot "${root}" userdel "${builder}" 2>/dev/null
-        rm -rf "${work}" "${pkgsrc}"; return 1
+        rm -rf "${pkgsrc}"; return 1
     fi
     chroot "${root}" userdel "${builder}" 2>/dev/null || true
     # Arch's generic kernel only fills /boot (a 7.x Image, initramfs and every
@@ -119,18 +109,69 @@ INSTALL
     # It also conflicts with any other 'linux', so it must go before ours.
     if chroot "${root}" pacman -Q linux-aarch64 >/dev/null 2>&1; then
         chroot "${root}" pacman -R --noconfirm linux-aarch64 \
-            || { echo "ERROR: could not remove the unused linux-aarch64 kernel" >&2; rm -rf "${work}" "${pkgsrc}"; return 1; }
+            || { echo "ERROR: could not remove the unused linux-aarch64 kernel" >&2; rm -rf "${pkgsrc}"; return 1; }
     fi
     # --overwrite: an image patched before this kept the same files unowned.
     chroot "${root}" bash -c "pacman -U --noconfirm \
             --overwrite '/boot/kernel8.img' --overwrite '/boot/bcm2711-rpi-cm4.dtb' \
             --overwrite '/boot/overlays/*' --overwrite '/usr/lib/modules/${UCONSOLE_CWPI_KVER}/*' \
             /tmp/uconsole-kernel-pkg/uconsole-kernel-cm4-rpi-*.pkg.tar" \
-        || { rm -rf "${work}" "${pkgsrc}"; return 1; }
+        || { rm -rf "${pkgsrc}"; return 1; }
     rm -rf "${pkgsrc}"
+}
 
+# Make pacman in <root> able to download on this kernel.
+uconsole_cwpi_pacman_sandbox() {
+    local root="$1"
 
-    cp "${root}/boot/config.txt" "${root}/boot/config.txt.community"
+    # pacman 7 sandboxes its downloads with Landlock, which arrived in Linux
+    # 5.13. On this 5.10 kernel every download fails ("Landlock is not
+    # supported by the kernel"), so the device could never update. Builds
+    # don't see it: they run pacman with --disable-sandbox on the host kernel.
+    # Turn off only the filesystem part, as pacman.conf(5) advises for such
+    # kernels; the syscall filter still applies.
+    if grep -q '^#DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
+        sed -i 's/^#DisableSandboxFilesystem/DisableSandboxFilesystem/' "${root}/etc/pacman.conf"
+    elif ! grep -q '^DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
+        sed -i '/^\[options\]/a DisableSandboxFilesystem' "${root}/etc/pacman.conf"
+    fi
+}
+
+uconsole_arch_use_clockworkpi_kernel() {
+    local root="$1"
+    local loop="$2"
+    local work deb ptuuid
+
+    if [ -z "${root}" ] || [ ! -f "${root}/boot/config.txt" ]; then
+        echo "uconsole_arch_use_clockworkpi_kernel: '${root}/boot' is not the boot partition" >&2
+        return 1
+    fi
+
+    # The MBR disk identifier survives dd onto the card, so PARTUUID=<id>-02
+    # names the root partition on the device too. This kernel has no
+    # initramfs, and without one root=LABEL= cannot be resolved.
+    ptuuid="$(blkid -s PTUUID -o value "${loop}")"
+    [ -n "${ptuuid}" ] || { echo "ERROR: could not read the disk identifier of ${loop}" >&2; return 1; }
+
+    work="$(mktemp -d /tmp/cwpi-kernel.XXXXXX)"
+    uconsole_cwpi_fetch_deb "${work}" || { rm -rf "${work}"; return 1; }
+
+    # GPU firmware for the CM4 and the board's wifi/bluetooth firmware come
+    # from Arch Linux ARM, so they keep updating with pacman. The community
+    # kernel package is removed so that pacman can never write its kernel and
+    # device tree back over these.
+    echo "==> Installing Pi firmware, removing the community kernel..."
+    chroot "${root}" pacman --disable-sandbox -S --needed --noconfirm raspberrypi-bootloader firmware-raspberrypi fakeroot \
+        || { rm -rf "${work}"; return 1; }
+    if chroot "${root}" pacman -Q linux-uconsole-cm4-git >/dev/null 2>&1; then
+        chroot "${root}" pacman -Rdd --noconfirm linux-uconsole-cm4-git || { rm -rf "${work}"; return 1; }
+    fi
+
+    uconsole_cwpi_install_kernel_package "${root}" "${work}/deb" || { rm -rf "${work}"; return 1; }
+
+    # Only the first time: a second run must not replace the community
+    # original with the ClockworkPi config written here.
+    [ -f "${root}/boot/config.txt.community" ] || cp "${root}/boot/config.txt" "${root}/boot/config.txt.community"
     {
         echo "# ClockworkPi uConsole CM4 -- ClockworkPi's own kernel and overlays,"
         echo "# the same set the Raspberry Pi OS builds in this repo boot."
@@ -145,17 +186,7 @@ INSTALL
     sed -i "s|root=LABEL=alarm-root|root=PARTUUID=${ptuuid}-02 rootfstype=ext4|" "${root}/boot/cmdline.txt"
     rm -rf "${work}"
 
-    # pacman 7 sandboxes its downloads with Landlock, which arrived in Linux
-    # 5.13. On this 5.10 kernel every download fails ("Landlock is not
-    # supported by the kernel"), so the device could never update. Builds
-    # don't see it: they run pacman with --disable-sandbox on the host kernel.
-    # Turn off only the filesystem part, as pacman.conf(5) advises for such
-    # kernels; the syscall filter still applies.
-    if grep -q '^#DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
-        sed -i 's/^#DisableSandboxFilesystem/DisableSandboxFilesystem/' "${root}/etc/pacman.conf"
-    elif ! grep -q '^DisableSandboxFilesystem' "${root}/etc/pacman.conf"; then
-        sed -i '/^\[options\]/a DisableSandboxFilesystem' "${root}/etc/pacman.conf"
-    fi
+    uconsole_cwpi_pacman_sandbox "${root}"
 
     # Verify the parts that, if missing, mean a black screen.
     local f
