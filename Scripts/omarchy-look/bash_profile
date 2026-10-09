@@ -1,0 +1,10 @@
+# ~/.bash_profile -- uConsole Omarchy-look image.
+
+[ -f ~/.bashrc ] && . ~/.bashrc
+
+# Logging in on tty1 starts the desktop. Every other tty stays a plain shell,
+# which is the escape hatch: if Hyprland will not start, press Ctrl+Alt+F2,
+# log in there, and fix it from the console.
+if [ -z "${WAYLAND_DISPLAY}" ] && [ "${XDG_VTNR}" = "1" ]; then
+    exec uconsole-hyprland
+fi

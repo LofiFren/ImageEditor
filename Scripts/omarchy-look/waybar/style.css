@@ -1,0 +1,69 @@
+/* Omarchy 3.8.4 bar styling, with the Tokyo Night palette inlined. */
+
+@define-color background #1a1b26;
+@define-color foreground #a9b1d6;
+@define-color accent #7aa2f7;
+@define-color warning #e0af68;
+@define-color critical #f7768e;
+
+* {
+  background-color: @background;
+  color: @foreground;
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  font-family: 'JetBrainsMono Nerd Font';
+  font-size: 12px;
+}
+
+.modules-left {
+  margin-left: 8px;
+}
+
+.modules-right {
+  margin-right: 8px;
+}
+
+#workspaces button {
+  all: initial;
+  padding: 0 6px;
+  margin: 0 1.5px;
+  min-width: 9px;
+}
+
+#workspaces button.active {
+  color: @accent;
+}
+
+#workspaces button.empty {
+  opacity: 0.5;
+}
+
+#custom-launcher,
+#custom-terminal,
+#custom-lock,
+#tray,
+#bluetooth,
+#network,
+#pulseaudio,
+#cpu,
+#battery {
+  min-width: 12px;
+  margin: 0 7.5px;
+}
+
+#custom-launcher {
+  color: @accent;
+}
+
+#battery.warning {
+  color: @warning;
+}
+
+#battery.critical {
+  color: @critical;
+}
+
+tooltip {
+  padding: 2px;
+}

@@ -4,8 +4,32 @@ This repository contains Docker-based tools for working with disk images:
 
 1. **[Kali Linux Image Editor](kali-linux-image-editor.md)** - Automated tool for creating Kali Linux images for uConsole CM4
 2. **[uConsole Terminal-Only Image](uconsole-terminal-image.md)** - Raspberry Pi OS Lite build that boots straight to a text login, for learning Linux
-3. **[Image Comparison Tool](image-comparison-tool.md)** - General-purpose image analysis and modification utilities
-4. **[Quick Reference](quick-reference.md)** - Common commands and workflows
+3. **[uConsole Omarchy Image](uconsole-omarchy-image.md)** - Arch Linux ARM desktop: real Omarchy ported to ARM, or a lighter Omarchy-styled Hyprland (`Scripts/create-uconsole-omarchy.sh`)
+4. **[Image Comparison Tool](image-comparison-tool.md)** - General-purpose image analysis and modification utilities
+5. **[Quick Reference](quick-reference.md)** - Common commands and workflows
+
+## Omarchy on the uConsole: quick start
+
+Needs Docker, about 40 GB free, internet access, and an SD card of 32 GB or
+more. Everything downloads itself, so there's nothing to fetch by hand.
+
+```bash
+docker compose up -d --build
+
+# real Omarchy (ported to ARM; ~17 GB image)
+docker compose exec -e OMARCHY_EDITION=real image-editor /workdir/Scripts/create-uconsole-omarchy.sh
+
+# or: the lighter Omarchy-styled Hyprland (~11 GB image)
+docker compose exec image-editor /workdir/Scripts/create-uconsole-omarchy.sh
+```
+
+It asks for a wifi country and a timezone, then builds
+`images/uconsole-omarchy-real-cm4.img` (or `uconsole-omarchy-cm4.img`). Flash
+that with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): pick
+*Use custom*, and say **No** to OS customisation. On first boot it asks for a
+password, then offers wifi.
+
+Details, options and troubleshooting: [uconsole-omarchy-image.md](uconsole-omarchy-image.md).
 
 ## Prerequisites
 

@@ -1,0 +1,83 @@
+// Waybar for the uConsole Omarchy-look image.
+//
+// Layout follows Omarchy 3.8.4's bar. Every click action is a plain program
+// rather than an omarchy-* script. The left-hand buttons exist so that the
+// launcher and a terminal are always one trackball click away, even if the
+// keyboard's mod key turns out to be awkward.
+{
+  "layer": "top",
+  "position": "top",
+  "spacing": 0,
+  "height": 26,
+  "modules-left": ["custom/launcher", "custom/terminal", "hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["tray", "bluetooth", "network", "pulseaudio", "cpu", "battery", "custom/lock"],
+
+  "custom/launcher": {
+    "format": "",
+    "on-click": "fuzzel",
+    "tooltip-format": "Launcher"
+  },
+  "custom/terminal": {
+    "format": "",
+    "on-click": "alacritty",
+    "tooltip-format": "Terminal"
+  },
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    "format": "{name}",
+    "persistent-workspaces": { "1": [], "2": [], "3": [], "4": [], "5": [] }
+  },
+  "clock": {
+    "format": "{:L%a %H:%M}",
+    "format-alt": "{:L%d %B %Y}",
+    "tooltip": false
+  },
+  "network": {
+    "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
+    "format-wifi": "{icon}",
+    "format-ethernet": "󰀂",
+    "format-disconnected": "󰤮",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-disconnected": "Disconnected",
+    "interval": 5,
+    "on-click": "alacritty -e nmtui-connect"
+  },
+  "bluetooth": {
+    "format": "",
+    "format-off": "󰂲",
+    "format-disabled": "󰂲",
+    "format-no-controller": "",
+    "tooltip-format": "Devices connected: {num_connections}",
+    "on-click": "alacritty -e bluetoothctl"
+  },
+  "pulseaudio": {
+    "format": "{icon}",
+    "format-muted": "",
+    "format-icons": { "default": ["", "", ""] },
+    "tooltip-format": "Volume {volume}%",
+    "on-click": "pamixer -t",
+    "scroll-step": 5
+  },
+  "cpu": {
+    "interval": 5,
+    "format": "󰍛",
+    "on-click": "alacritty -e btop"
+  },
+  "battery": {
+    "format": "{capacity}% {icon}",
+    "format-charging": "{capacity}% 󰂄",
+    "format-icons": ["󰁺", "󰁼", "󰁾", "󰂀", "󰁹"],
+    "interval": 10,
+    "states": { "warning": 20, "critical": 10 }
+  },
+  "custom/lock": {
+    "format": "",
+    "on-click": "hyprlock",
+    "tooltip-format": "Lock"
+  },
+  "tray": {
+    "icon-size": 12,
+    "spacing": 12
+  }
+}
