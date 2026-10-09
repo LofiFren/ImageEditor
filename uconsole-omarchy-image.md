@@ -296,6 +296,45 @@ wifi icon opens the network picker.
 Configs live in `~/.config/{hypr,waybar,mako,alacritty,fuzzel}` and are plain
 files you can edit.
 
+### More than one user (real edition)
+
+Add an account from a terminal (`wheel` gives sudo; leave it out for a guest):
+
+```bash
+sudo useradd -m -G wheel,video,input,audio,render -s /bin/bash alex
+sudo passwd alex
+```
+
+New accounts get the uConsole's screen rotation and scale automatically. To
+switch users, log out (`Select + Escape` → **Logout**). With more than one
+account, the login screen says **log in as ‹ name ›**: the arrow keys (or Tab)
+choose the account, and Enter logs in.
+
+Omarchy's own login screen only signs in the last user, so this image uses a
+copy of it with a user picker (`/usr/share/sddm/themes/omarchy-uconsole`).
+Omarchy's theme itself is unchanged.
+
+On a uConsole flashed before this, run `upgrade-uconsole-device.sh` (see
+[Updates](#updates)). Accounts created before that keep their own screen
+settings. If one comes up sideways, copy yours to it:
+`sudo install -o alex -g alex -m 644 ~/.config/hypr/monitors.lua /home/alex/.config/hypr/monitors.lua`.
+
+### Logging in takes a moment
+
+On a CM4, the desktop takes 15–20 seconds to appear after you log in. After
+Enter, the login screen shows **logging in** with a moving bar. Then Omarchy's
+logo and **starting omarchy** fill the screen until the desktop is drawn.
+
+That splash is `uconsole-session-splash`, in two stages:
+- First, on the session's text console, before Hyprland can draw anything.
+  It's started by `/etc/profile.d/uconsole-session-splash.sh`, but only for a
+  desktop login, not for console or SSH logins.
+- Then in a full-screen foot window, until Omarchy's bar appears. It's started
+  by `/etc/xdg/autostart/uconsole-session-splash.desktop`.
+
+Each stage stops by itself, after a minute at most. Only Hyprland's own
+two to three seconds of start-up stay blank.
+
 ### Updates
 
 `omarchy update` updates the system from Arch Linux ARM and Omarchy's ARM
