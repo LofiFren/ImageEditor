@@ -760,9 +760,11 @@ cat << 'PREP' > "${MOUNT_POINT}/usr/local/sbin/uconsole-firstboot-prep"
 STAMP=/var/lib/uconsole-firstboot-prep-pending
 
 # A pacman keyring baked into an image means every card shares one private
-# signing key. Generate a fresh one here instead.
+# signing key. Generate a fresh one here instead. --populate with no name
+# trusts every installed keyring: Arch Linux ARM's and also Omarchy's, which
+# its repo requires.
 if [ ! -d /etc/pacman.d/gnupg ]; then
-    pacman-key --init && pacman-key --populate archlinuxarm
+    pacman-key --init && pacman-key --populate
 fi
 
 # Fill the SD card. The image is only as big as the build made it.
