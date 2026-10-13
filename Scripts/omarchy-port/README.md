@@ -28,6 +28,7 @@ packages (checksum-pinned) and change only what a Pi needs:
 | remove `/etc/mkinitcpio.conf.d/thunderbolt_module.conf` | no Thunderbolt on a CM4 |
 | remove `/etc/limine-entry-tool.d/` | Limine config |
 | widen the Apple Silicon check in the install script to all aarch64 | keeps Arch Linux ARM's system identity (os-release, PAM, NSS), which is upstream's own choice for an ARM base |
+| pin `import QtQuick 6.11` in shell files that use the `Color` palette | Qt 6.12 added a QtQuick `Color` singleton that shadows the shell's `qs.Commons.Color`, so theme colors read as undefined and the bar, menus and lock screen draw invisibly. Upstream fixed it in [omacom/omarchy#14553](https://github.com/omacom/omarchy/pull/14553); when a release carries that fix, this step finds nothing to patch |
 
 Each PKGBUILD fails the build if upstream ever starts shipping a compiled
 (ELF) binary. That would be x86_64 and would silently break on the device.
